@@ -1,0 +1,7 @@
+.env
+# Node modules
+node_modules/
+keys.env
+# Other ignores
+*.pyc
+__pycache__/

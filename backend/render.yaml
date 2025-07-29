@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: django-ocr-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn sample_app_project.wsgi
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: sample_app_project.settings
+      - key: PYTHON_VERSION
+        value: 3.11

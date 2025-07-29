@@ -1,0 +1,25 @@
+{
+  "name": "telehealth",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bokang-Kgabale/Telehealth-Application.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Bokang-Kgabale/Telehealth-Application/issues"
+  },
+  "homepage": "https://github.com/Bokang-Kgabale/Telehealth-Application#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0",
+    "path": "^0.12.7",
+    "react-webcam": "^7.2.0"
+  }
+}

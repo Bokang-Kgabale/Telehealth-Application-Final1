@@ -1,0 +1,30 @@
+2025-07-28 23:02:49,755 - __main__ - INFO - Environment file loaded from: C:\Users\bokan\Documents\Coding Projects\Kinetix Engineering Tech\Telehealth-Application\backend\.env
+2025-07-28 23:02:49,756 - __main__ - INFO - === Environment Debug ===
+2025-07-28 23:02:49,756 - __main__ - INFO - FIREBASE_CREDENTIALS_JSON: SET
+2025-07-28 23:02:49,756 - __main__ - INFO - FIREBASE_DATABASE_URL: SET
+2025-07-28 23:02:49,756 - __main__ - INFO - ========================
+2025-07-28 23:02:49,756 - __main__ - INFO - Initializing Firebase...
+2025-07-28 23:02:49,756 - __main__ - DEBUG - Attempting to parse Firebase credentials as JSON string
+2025-07-28 23:02:49,793 - __main__ - INFO - Firebase credentials parsed from JSON string
+2025-07-28 23:02:49,794 - __main__ - INFO - Initializing Firebase app with database URL: https://fir-rtc-521a2-default-rtdb.firebaseio.com/
+2025-07-28 23:02:49,794 - __main__ - INFO - Firebase initialized successfully
+2025-07-28 23:02:49,794 - __main__ - INFO - Initializing Google Vision API...
+2025-07-28 23:02:49,795 - __main__ - DEBUG - Using embedded Vision credentials
+2025-07-28 23:02:49,796 - __main__ - INFO - Vision credentials written to: C:\Users\bokan\Documents\Coding Projects\Kinetix Engineering Tech\Telehealth-Application\backend\config\vision-key.json
+2025-07-28 23:02:49,840 - __main__ - INFO - Google Vision API client created successfully
+2025-07-28 23:02:49,841 - __main__ - INFO - All services initialized successfully
+2025-07-28 23:23:59,550 - __main__ - INFO - Environment file loaded from: C:\Users\bokan\Documents\Coding Projects\Kinetix Engineering Tech\Telehealth-Application\backend\.env
+2025-07-28 23:23:59,550 - __main__ - INFO - === Environment Debug ===
+2025-07-28 23:23:59,550 - __main__ - INFO - FIREBASE_CREDENTIALS_JSON: SET
+2025-07-28 23:23:59,551 - __main__ - INFO - FIREBASE_DATABASE_URL: SET
+2025-07-28 23:23:59,551 - __main__ - INFO - ========================
+2025-07-28 23:23:59,551 - __main__ - INFO - Initializing Firebase...
+2025-07-28 23:23:59,551 - __main__ - DEBUG - Attempting to parse Firebase credentials as JSON string
+2025-07-28 23:23:59,585 - __main__ - INFO - Firebase credentials parsed from JSON string
+2025-07-28 23:23:59,586 - __main__ - INFO - Initializing Firebase app with database URL: https://fir-rtc-521a2-default-rtdb.firebaseio.com/
+2025-07-28 23:23:59,586 - __main__ - INFO - Firebase initialized successfully
+2025-07-28 23:23:59,586 - __main__ - INFO - Initializing Google Vision API...
+2025-07-28 23:23:59,586 - __main__ - DEBUG - Using embedded Vision credentials
+2025-07-28 23:23:59,587 - __main__ - INFO - Vision credentials written to: C:\Users\bokan\Documents\Coding Projects\Kinetix Engineering Tech\Telehealth-Application\backend\config\vision-key.json
+2025-07-28 23:23:59,628 - __main__ - INFO - Google Vision API client created successfully
+2025-07-28 23:23:59,628 - __main__ - INFO - All services initialized successfully

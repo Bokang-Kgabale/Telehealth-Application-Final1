@@ -1,0 +1,11 @@
+.env
+sample_app_project/temp_gcp_creds.json
+temp_vision_creds.json
+temp_vision_key.json
+config/vision-key.json
+# Node modules
+node_modules/
+
+# Other ignores
+*.pyc
+__pycache__/
