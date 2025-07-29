@@ -59,7 +59,7 @@ let lastCredentialsFetchTime = 0;
 let iceServers = null;
 
 window.addEventListener('message', (event) => {
-  if (event.origin !== "https://fir-rtc-521a2.web.app/") return;
+  if (event.origin !== "https://fir-rtc-521a2.web.app") return;
 
   if (event.data.type === "JOIN_ROOM" && event.data.roomId) {
     joinRoom(event.data.roomId).catch(error => {});
@@ -82,23 +82,51 @@ const toggleVideoBtn = document.getElementById("toggleVideo");
 const muteAudioBtn = document.getElementById("muteAudio");
 
 async function fetchTurnCredentials() {
+  // Your static metered.ca TURN servers
+  const staticTurnServers = [
+    { urls: "stun:stun.relay.metered.ca:80" },
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: "2506751c38ffc2c7eaeccab9",
+      credential: "Hnz1SG7ezaCS6Jtg",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: "2506751c38ffc2c7eaeccab9",
+      credential: "Hnz1SG7ezaCS6Jtg",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: "2506751c38ffc2c7eaeccab9",
+      credential: "Hnz1SG7ezaCS6Jtg",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "2506751c38ffc2c7eaeccab9",
+      credential: "Hnz1SG7ezaCS6Jtg",
+    },
+  ];
+
   try {
     const response = await fetch("/api/turn-credentials");
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `Failed to fetch TURN credentials: ${response.statusText}`
-      );
+      throw new Error(`Failed to fetch TURN credentials: ${response.statusText}`);
     }
 
     const turnServers = await response.json();
+
+    // Normalize fetched turn servers array
+    const fetchedIceServers = turnServers.iceServers || turnServers || [];
+
     iceServers = {
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
         { urls: "stun:stun2.l.google.com:19302" },
-        ...(turnServers.iceServers || turnServers || []),
+        ...fetchedIceServers,
+        ...staticTurnServers, // append your static TURN servers at the end
       ],
     };
 
@@ -110,11 +138,13 @@ async function fetchTurnCredentials() {
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
         { urls: "stun:stun2.l.google.com:19302" },
+        ...staticTurnServers, // fallback includes your static TURN servers too
       ],
     };
     return false;
   }
 }
+
 
 async function ensureFreshCredentials() {
   const timeSinceLastFetch = Date.now() - lastCredentialsFetchTime;
