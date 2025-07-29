@@ -1,4 +1,4 @@
-import { getDatabase, ref, set } from "firebase/database";
+import { getDatabase, ref, set, remove } from "firebase/database";
 import { serverTimestamp } from "firebase/database";
 
 /**
@@ -20,22 +20,7 @@ export const handlePatientClick = (patient, setSelectedPatient = null) => {
  * @param {Function} [setShowStream] - Optional state setter for stream visibility
  * @param {Function} [setSearchQuery] - Optional state setter for search query
  */
-/*export const callPatient = (patient, setShowStream = null, setSearchQuery = null) => {
-    console.log("Calling patient:", patient);
-    
-    if (patient.phoneNumber) {
-        window.open(`tel:${patient.phoneNumber}`);
-        return;
-    }
-    
-    if (patient.roomId && setShowStream && setSearchQuery) {
-        setSearchQuery(patient.roomId);
-        setShowStream(true);
-        return;
-    }
-    
-    alert(`No contact information available for ${patient.id}`);
-};*/
+
 
 /**
  * Sends a message to a patient with room assignment
@@ -76,12 +61,14 @@ export const sendMessageToPatient = async (
         return false;
     }
 };
-
-/**
- * Wrapper for callPatient with confirmation dialog
-
-export const callPatientWithConfirmation = (patient, ...args) => {
-    if (window.confirm(`Call patient ${patient.id}?`)) {
-        callPatient(patient, ...args);
+export const handleMarkAsDone = async (city, patientId) => {
+    const db = getDatabase();
+    const patientRef = ref(db, `patients/${city}/${patientId}`);
+    
+    try {
+        await remove(patientRef);
+        console.log(`Patient ${patientId} removed from the queue.`);
+    } catch (error) {
+        console.error(`Failed to remove patient ${patientId}:`, error);
     }
-};*/
+};

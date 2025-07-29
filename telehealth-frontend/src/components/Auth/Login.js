@@ -4,7 +4,6 @@ import { auth } from "../../firebase";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Auth.css";
 
-// Enhanced secure logging utility
 const secureLog = {
   loginAttempt: (email) => {
     if (process.env.NODE_ENV !== 'production') {
@@ -13,7 +12,6 @@ const secureLog = {
       console.groupEnd();
     }
   },
-  
   loginSuccess: (user) => {
     if (process.env.NODE_ENV !== 'production') {
       console.groupCollapsed('Login successful (secured details)');
@@ -23,7 +21,6 @@ const secureLog = {
       console.groupEnd();
     }
   },
-  
   loginError: (error) => {
     if (process.env.NODE_ENV !== 'production') {
       console.groupCollapsed('Login error (secured)');
@@ -35,10 +32,7 @@ const secureLog = {
 };
 
 function LoginPage({ setIsAuthenticated }) {
-  const [credentials, setCredentials] = useState({
-    email: "",
-    password: "",
-  });
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const location = useLocation();
@@ -59,23 +53,13 @@ function LoginPage({ setIsAuthenticated }) {
 
     try {
       secureLog.loginAttempt(credentials.email);
-      
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        credentials.email,
-        credentials.password
-      );
-
+      const userCredential = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       secureLog.loginSuccess(userCredential.user);
-
       setIsAuthenticated(true);
       navigate(role === "doctor" ? "/doctor" : "/patient");
-      
     } catch (err) {
       secureLog.loginError(err);
-      
       let errorMessage = "Login failed. Please try again.";
-      
       switch (err.code) {
         case "auth/invalid-email":
           errorMessage = "Invalid email address";
@@ -95,7 +79,6 @@ function LoginPage({ setIsAuthenticated }) {
         default:
           errorMessage = err.message.replace("Firebase: ", "");
       }
-      
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -105,6 +88,7 @@ function LoginPage({ setIsAuthenticated }) {
   return (
     <div className="auth-container">
       <header className="auth-header">
+        <button className="back-button" onClick={() => navigate("/")}>Back</button>
         <h1>Medical Data Capture System</h1>
         <h2>Welcome to Telehealth Platform</h2>
       </header>
@@ -135,21 +119,17 @@ function LoginPage({ setIsAuthenticated }) {
               placeholder="At least 6 characters"
             />
           </div>
-          
+
           {error && (
             <div className="error-message">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.48...z" />
               </svg>
               {error}
             </div>
           )}
 
-          <button 
-            type="submit" 
-            className="auth-button"
-            disabled={loading}
-          >
+          <button type="submit" className="auth-button" disabled={loading}>
             {loading ? (
               <>
                 <span className="spinner"></span>
@@ -162,9 +142,7 @@ function LoginPage({ setIsAuthenticated }) {
         <div className="auth-links">
           <a href="/forgot-password">Forgot password?</a>
           <a href="/contact">Contact support</a>
-          {role === "doctor" && (
-            <a href="/register-doctor">Register account</a>
-          )}
+          {role === "doctor" && <a href="/register-doctor">Register account</a>}
         </div>
       </div>
     </div>

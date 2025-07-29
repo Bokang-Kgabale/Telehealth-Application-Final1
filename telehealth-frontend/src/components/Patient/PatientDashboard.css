@@ -867,3 +867,20 @@ body {
 .enhanced-exit-btn:hover {
   background-color: #c0392b;
 }
+.back-button {
+  background-color: transparent;
+  color: var(--white);
+  border: 2px solid var(--white);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  margin-right: var(--spacing-md);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  align-self: center; /* vertically center in header */
+}
+
+.back-button:hover {
+  background-color: var(--white);
+  color: var(--primary-color);
+}

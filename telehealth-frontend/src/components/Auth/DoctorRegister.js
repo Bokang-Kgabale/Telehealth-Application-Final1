@@ -206,9 +206,10 @@ const DoctorRegister = ({ setIsAuthenticated }) => {
 
   return (
     <div className="auth-container">
-      <header className="auth-header">
+     <header className="auth-header">
+        <button className="back-button" onClick={() => navigate("/login")}>Back</button>
         <h1>Medical Data Capture System</h1>
-        <h2>Doctor Registration</h2>
+        <h2>Welcome to Telehealth Platform</h2>
       </header>
 
       <div className="auth-form-container">

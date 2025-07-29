@@ -65,8 +65,8 @@ function PatientLogin() {
           </div>
         </div>
       )}
-
       <header className="auth-header">
+        <button className="back-button" onClick={() => navigate("/")}>Back</button>
         <h1>Telehealth Patient Portal</h1>
         <h2>Cape Town Location</h2>
       </header>

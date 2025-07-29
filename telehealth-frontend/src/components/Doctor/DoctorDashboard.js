@@ -6,6 +6,7 @@ import {
   handlePatientClick,
   sendMessageToPatient,
 } from "../Handlers/patientsHandlers";
+import { handleMarkAsDone } from "../Handlers/patientsHandlers";
 import "./DoctorDashboard.css";
 
 const DoctorDashboard = () => {
@@ -43,7 +44,6 @@ const DoctorDashboard = () => {
     };
     fetchDoctorName();
   }, []);
-  
 
   // Handle messages from video call iframe
   useEffect(() => {
@@ -70,34 +70,34 @@ const DoctorDashboard = () => {
   }, []);
 
   // Monitor queue when city changes using queueService
-// Replace the current monitorCityQueue useEffect with this:
-useEffect(() => {
-  const db = getDatabase();
-  const patientsRef = ref(db, `patients/${currentCity}`);
+  // Replace the current monitorCityQueue useEffect with this:
+  useEffect(() => {
+    const db = getDatabase();
+    const patientsRef = ref(db, `patients/${currentCity}`);
 
-  // Listen for realtime updates
-  const unsubscribe = onValue(patientsRef, (snapshot) => {
-    const patientsData = snapshot.val();
-    
-    // Convert the object of patients into an array
-    const patientsArray = patientsData 
-      ? Object.keys(patientsData).map((patientId) => ({
-          id: patientId,
-          ...patientsData[patientId],
-        }))
-      : [];
+    // Listen for realtime updates
+    const unsubscribe = onValue(patientsRef, (snapshot) => {
+      const patientsData = snapshot.val();
 
-    // Sort by createdAt timestamp (fallback to 0 if missing)
-    const sortedPatients = patientsArray.sort((a, b) => 
-      (a.createdAt || 0) - (b.createdAt || 0)
-    );
+      // Convert the object of patients into an array
+      const patientsArray = patientsData
+        ? Object.keys(patientsData).map((patientId) => ({
+            id: patientId,
+            ...patientsData[patientId],
+          }))
+        : [];
 
-    setPatientQueue(sortedPatients);
-  });
+      // Sort by createdAt timestamp (fallback to 0 if missing)
+      const sortedPatients = patientsArray.sort(
+        (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+      );
 
-  // Clean up listener on unmount or city change
-  return () => off(patientsRef, unsubscribe);
-}, [currentCity]);
+      setPatientQueue(sortedPatients);
+    });
+
+    // Clean up listener on unmount or city change
+    return () => off(patientsRef, unsubscribe);
+  }, [currentCity]);
 
   const toggleLiveStream = () => {
     setShowStream(!showStream);
@@ -178,6 +178,12 @@ useEffect(() => {
     <div className="app-container">
       <header className="app-header">
         <h1>
+          <button
+            className="back-button"
+            onClick={() => (window.location.href = "/")}
+          >
+            ←
+          </button>
           Medical Data Capture System -{" "}
           {availableCities.find((c) => c.code === currentCity)?.name} -
           {doctorName && (
@@ -241,16 +247,28 @@ useEffect(() => {
                     )}
                   </span>
                   <span className="patient-actions">
-                    <button
-                      className="message-button"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        await handleSendRoomId(patient.id);
-                      }}
-                      disabled={isSendingMessage}
-                    >
-                      {isSendingMessage ? "Sending..." : "Send Room ID"}
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        className="message-button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await handleSendRoomId(patient.id);
+                        }}
+                        disabled={isSendingMessage}
+                      >
+                        {isSendingMessage ? "Sending..." : "Send ID"}
+                      </button>
+
+                      <button
+                        className="done-button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await handleMarkAsDone(patient.city, patient.id);
+                        }}
+                      >
+                        Done
+                      </button>
+                    </div>
                   </span>
                   <span className="wait-time">
                     {formatWaitTime(patient.createdAt)}

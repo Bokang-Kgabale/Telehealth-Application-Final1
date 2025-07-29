@@ -356,10 +356,18 @@ const PatientDashboard = () => {
   return (
     <div className="app-container">
       <header className="app-header">
+        <button
+          className="back-button"
+          onClick={() => (window.location.href = "/")}
+        >
+          ←
+        </button>
+
         <h1>
           Medical Data Capture System - Patient Dashboard -
           {patientId && <span className="patient-id-header"> {patientId}</span>}
         </h1>
+
         {mode && (
           <h2 className={`mode-indicator ${mode}`}>
             Mode: {mode.charAt(0).toUpperCase() + mode.slice(1)}

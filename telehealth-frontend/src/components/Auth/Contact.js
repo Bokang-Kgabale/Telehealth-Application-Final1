@@ -8,6 +8,7 @@ const Contact = () => {
   return (
     <div className="auth-container">
       <header className="auth-header">
+        <button className="back-button" onClick={() => navigate("/login")}>Back</button>
         <h1>Medical Data Capture System</h1>
         <h2>Welcome to Telehealth Platform</h2>
       </header>
@@ -40,13 +41,6 @@ const Contact = () => {
             </a>
           </div>
         </div>
-
-        <button 
-          onClick={() => navigate(-1)} 
-          className="auth-button back-button"
-        >
-          Back
-        </button>
       </div>
     </div>
   );

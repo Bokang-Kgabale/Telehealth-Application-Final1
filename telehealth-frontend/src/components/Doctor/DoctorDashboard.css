@@ -126,6 +126,22 @@ body {
     color: var(--success-color);
     font-weight: 600;
 }
+.back-button {
+  background-color: transparent;
+  color: var(--white);
+  border: 2px solid var(--white);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  margin-right: var(--spacing-md);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: var(--white);
+  color: var(--primary-color);
+}
 
 /* ===== Form Elements ===== */
 .location-selector {
@@ -305,7 +321,7 @@ body {
 }
 
 .wait-time {
-    color: var(--gray-700);
+    color: var(--success-color);
     font-size: var(--font-size-xs);
     min-width: 50px;
     text-align: right;
@@ -654,7 +670,7 @@ body {
 .message-button {
     margin-left: var(--spacing-sm);
     padding: var(--spacing-xs) var(--spacing-sm);
-    background-color: var(--info-color);
+    background-color: var(--success-color);
     color: white;
     border: none;
     border-radius: var(--radius-sm);
@@ -664,7 +680,7 @@ body {
 }
 
 .message-button:hover {
-    background-color: var(--info-hover);
+    background-color: var(--success-hover);
 }
 
 .patient-actions {
@@ -678,3 +694,19 @@ body {
   border-radius: 4px;
   font-size: 14px;
 }
+.done-button {
+  margin-left: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: #f50808;
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.done-button:hover {
+  background-color: #c83030;
+}
+
