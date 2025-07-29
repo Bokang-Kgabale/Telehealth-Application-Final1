@@ -211,7 +211,7 @@ useEffect(() => {
 
             {currentRoomId && (
               <div className="active-room">
-                Active Room: <strong>{currentRoomId}</strong>
+                Room N.o: <strong>{currentRoomId}</strong>
                 <button
                   onClick={copyRoomId}
                   className="copy-button"

@@ -77,7 +77,11 @@ def initialize_services():
 class OCRService:
     PATTERNS = {
         'temperature': r"(\d{2}\.?\d?\s?[°℃CF])|(\d{2}\.?\d?)",
-        'weight': r"(\d{2,3}\.?\d?\s?[kK][gG])|(\d{2,3}\.?\d?)"
+        'weight': r"(\d{2,3}\.?\d?\s?[kK][gG])|(\d{2,3}\.?\d?)",
+        'glucose': r"(\d{2,3}\.?\d?\s?(mg/dL|mmol/L)?)|(\d{2,3}\.?\d?)",
+        'blood_pressure': r"\b(\d{2,3})[\/\-](\d{2,3})\b",
+        'endoscope': r".+"  # You may refine this depending on what data you expect from endoscopy images
+
     }
 
     @classmethod
@@ -85,19 +89,34 @@ class OCRService:
         """Extract formatted value from OCR text"""
         if not text or text == "No text found":
             return None
-        
+
         matches = re.findall(cls.PATTERNS[capture_type], text, re.IGNORECASE)
         flat_matches = [m for group in matches for m in group if m]
-        
+
         if not flat_matches:
             return None
-            
-        value = re.sub(r"[^\d.]", "", flat_matches[0])
+
+        value = re.sub(r"[^\d./]", "", flat_matches[0])  # Keep digits, dot, and slash
+
         try:
-            num = float(value)
-            return f"{num}°C" if capture_type == 'temperature' else f"{num} Kg"
+            if capture_type == 'temperature':
+                num = float(value)
+                return f"{num}°C"
+            elif capture_type == 'weight':
+                num = float(value)
+                return f"{num} Kg"
+            elif capture_type == 'glucose':
+                num = float(value)
+                return f"{num} mg/dL"
+            elif capture_type == 'blood_pressure':
+                return f"{value} mmHg"
+            elif capture_type == 'endoscope':
+                return "Endoscopic data captured"
+            else:
+                return value
         except ValueError:
             return None
+
 
     @classmethod
     def process_image(cls, image_bytes, capture_type):

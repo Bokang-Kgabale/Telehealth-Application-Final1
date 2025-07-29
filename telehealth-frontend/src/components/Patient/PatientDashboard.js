@@ -18,12 +18,18 @@ const PatientDashboard = () => {
   const [capturedImages, setCapturedImages] = useState({
     temperature: null,
     weight: null,
+    blood_pressure: null,
+    glucose: null,
+    endoscope: null,
   });
   const [mode, setMode] = useState(null);
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedCameras, setSelectedCameras] = useState({
     temperature: "",
     weight: "",
+    blood_pressure: "",
+    glucose: "",
+    endoscope: "",
   });
   const [timer, setTimer] = useState(5);
   const [cameraReady, setCameraReady] = useState(false);
@@ -32,6 +38,9 @@ const PatientDashboard = () => {
   const [capturedData, setCapturedData] = useState({
     temperature: null,
     weight: null,
+    blood_pressure: null,
+    glucose: null,
+    endoscope: null,
   });
   const [roomId, setRoomId] = useState("");
   const [showRoomIdModal, setShowRoomIdModal] = useState(false);
@@ -102,83 +111,88 @@ const PatientDashboard = () => {
     setActiveCapture(null);
   };
 
-  const uploadImage = useCallback(async (imageSrc, type) => {
-  console.log(`Starting upload for ${type}...`);
-  
-  try {
-    setIsCapturing(true);
-    
-    // Convert data URL to blob
-    const response = await fetch(imageSrc);
-    if (!response.ok) {
-      throw new Error('Failed to process captured image');
-    }
-    
-    const blob = await response.blob();
-    
-    // Validate blob
-    if (blob.size === 0) {
-      throw new Error('Captured image is empty');
-    }
-    
-    console.log(`Image blob size: ${blob.size} bytes`);
-    
-    const formData = new FormData();
-    formData.append("image", blob, `${type}_${Date.now()}.jpg`);
-    formData.append("type", type);
-    formData.append("roomId", roomId || "default-room");
-    
-    console.log('FormData prepared:', {
-      imageSize: blob.size,
-      type: type,
-      roomId: roomId || "default-room"
-    });
+  const uploadImage = useCallback(
+    async (imageSrc, type) => {
+      console.log(`Starting upload for ${type}...`);
 
-    const baseUrl = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
-    const uploadResponse = await fetch(`${baseUrl}/api/upload/`, {
-      method: "POST",
-      body: formData,
-      // Don't set Content-Type header - let browser set it with boundary
-    });
-
-    console.log('Upload response status:', uploadResponse.status);
-    console.log('Upload response headers:', uploadResponse.headers);
-
-    if (!uploadResponse.ok) {
-      let errorMessage = `HTTP ${uploadResponse.status}`;
       try {
-        const errorData = await uploadResponse.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-        console.error('Server error response:', errorData);
-      } catch (e) {
-        const errorText = await uploadResponse.text();
-        errorMessage = errorText || errorMessage;
-        console.error('Server error text:', errorText);
+        setIsCapturing(true);
+
+        // Convert data URL to blob
+        const response = await fetch(imageSrc);
+        if (!response.ok) {
+          throw new Error("Failed to process captured image");
+        }
+
+        const blob = await response.blob();
+
+        // Validate blob
+        if (blob.size === 0) {
+          throw new Error("Captured image is empty");
+        }
+
+        console.log(`Image blob size: ${blob.size} bytes`);
+
+        const formData = new FormData();
+        formData.append("image", blob, `${type}_${Date.now()}.jpg`);
+        formData.append("type", type);
+        formData.append("roomId", roomId || "default-room");
+
+        console.log("FormData prepared:", {
+          imageSize: blob.size,
+          type: type,
+          roomId: roomId || "default-room",
+        });
+
+        const baseUrl =
+          process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+        const uploadResponse = await fetch(`${baseUrl}/api/upload/`, {
+          method: "POST",
+          body: formData,
+          // Don't set Content-Type header - let browser set it with boundary
+        });
+
+        console.log("Upload response status:", uploadResponse.status);
+        console.log("Upload response headers:", uploadResponse.headers);
+
+        if (!uploadResponse.ok) {
+          let errorMessage = `HTTP ${uploadResponse.status}`;
+          try {
+            const errorData = await uploadResponse.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+            console.error("Server error response:", errorData);
+          } catch (e) {
+            const errorText = await uploadResponse.text();
+            errorMessage = errorText || errorMessage;
+            console.error("Server error text:", errorText);
+          }
+          throw new Error(errorMessage);
+        }
+
+        const data = await uploadResponse.json();
+        console.log("Upload successful:", data);
+
+        setCapturedData((prev) => ({ ...prev, [type]: data.data }));
+
+        setCurrentMessage({
+          content: `Successfully captured ${type}: ${
+            data.data?.formatted_value || "Processing..."
+          }`,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("Upload error:", error);
+        setCurrentMessage({
+          content: `Failed to capture ${type}: ${error.message}`,
+          timestamp: new Date().toISOString(),
+          isError: true,
+        });
+      } finally {
+        setIsCapturing(false);
       }
-      throw new Error(errorMessage);
-    }
-
-    const data = await uploadResponse.json();
-    console.log('Upload successful:', data);
-    
-    setCapturedData((prev) => ({ ...prev, [type]: data.data }));
-
-    setCurrentMessage({
-      content: `Successfully captured ${type}: ${data.data?.formatted_value || 'Processing...'}`,
-      timestamp: new Date().toISOString(),
-    });
-    
-  } catch (error) {
-    console.error("Upload error:", error);
-    setCurrentMessage({
-      content: `Failed to capture ${type}: ${error.message}`,
-      timestamp: new Date().toISOString(),
-      isError: true,
-    });
-  } finally {
-    setIsCapturing(false);
-  }
-}, [roomId]);
+    },
+    [roomId]
+  );
 
   const captureImage = useCallback(
     (type) => {
@@ -402,59 +416,69 @@ const PatientDashboard = () => {
             </div>
           </div>
         </div>
-        <div className="camera-container">
-          <div className="camera-view">
-            <div className="capture-controls">
-              <button
-                onClick={() => handleCapture("temperature")}
-                className={`capture-type-btn ${
-                  activeCapture === "temperature" ? "active" : ""
-                }`}
-              >
-                Capture Temperature
-              </button>
-              <button
-                onClick={() => handleCapture("weight")}
-                className={`capture-type-btn ${
-                  activeCapture === "weight" ? "active" : ""
-                }`}
-              >
-                Capture Weight
-              </button>
+
+        <div className="camera-view">
+          <div className="camera-view enhanced-camera-view">
+            <div className="capture-controls enhanced-capture-controls">
+              {[
+                "temperature",
+                "weight",
+                "blood_pressure",
+                "glucose",
+                "endoscope",
+              ].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleCapture(type)}
+                  className={`capture-type-btn enhanced-btn ${
+                    activeCapture === type ? "active" : ""
+                  }`}
+                >
+                  Capture{" "}
+                  {type
+                    .replace("_", " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                </button>
+              ))}
             </div>
 
             {activeCapture && (
-              <div className="compact-camera-container">
-                {activeCapture && (
-                  <div className="timer-display">
-                    <span className="timer-circle">{timer}</span>
-                    <p>
-                      Capturing {activeCapture} in {timer} seconds
-                    </p>
-                    <p className="camera-label">
-                      Using: {getCameraName(selectedCameras[activeCapture])}
-                    </p>
-                  </div>
-                )}
+              <div className="compact-camera-container enhanced-camera-box">
+                <div className="timer-display enhanced-timer">
+                  <span className="timer-circle">{timer}</span>
+                  <p>
+                    <strong>
+                      Capturing {activeCapture.replace("_", " ").toUpperCase()}{" "}
+                      in {timer}...
+                    </strong>
+                  </p>
+                  <p className="camera-label">
+                    Using Camera:{" "}
+                    <em>{getCameraName(selectedCameras[activeCapture])}</em>
+                  </p>
+                </div>
 
                 <Webcam
                   ref={webcamRef}
                   screenshotFormat="image/jpeg"
-                  className="compact-webcam"
+                  className="compact-webcam enhanced-webcam"
                   videoConstraints={{
                     deviceId: getCurrentCameraId(),
                     facingMode: "user",
                   }}
                   onUserMedia={handleOnReady}
                 />
+
+                <div className="camera-controls">
+                  <button
+                    className="button exit-btn enhanced-exit-btn"
+                    onClick={exitCamera}
+                  >
+                    ❌ Close Capture
+                  </button>
+                </div>
               </div>
             )}
-
-            <div className="camera-controls">
-              <button onClick={exitCamera} className="button exit-btn">
-                Close Capture
-              </button>
-            </div>
           </div>
 
           <div className="stream-view">
@@ -518,23 +542,81 @@ const PatientDashboard = () => {
               </div>
             )}
 
-            {!capturedData.temperature && !capturedData.weight && (
-              <div className="no-data">
-                <p>No readings captured yet</p>
-                <button
-                  onClick={() => handleCapture("temperature")}
-                  className="capture-btn"
-                >
-                  Take Temperature Reading
-                </button>
-                <button
-                  onClick={() => handleCapture("weight")}
-                  className="capture-btn"
-                >
-                  Take Weight Reading
-                </button>
+            {capturedData.blood_pressure && (
+              <div className="result-card">
+                <h4>Blood Pressure</h4>
+                <div className="result-value">
+                  {capturedData.blood_pressure.formatted_value || "N/A"}
+                </div>
+                <div className="result-meta">
+                  <p>Raw OCR: {capturedData.blood_pressure.raw_text}</p>
+                  {capturedData.weight.confidence && (
+                    <p>Confidence: {capturedData.blood_pressure.confidence}</p>
+                  )}
+                </div>
+                {capturedImages.weight && (
+                  <img
+                    src={capturedImages.blood_pressure}
+                    alt="Blood Pressure scan"
+                    className="result-image"
+                  />
+                )}
               </div>
             )}
+
+            {capturedData.glucose && (
+              <div className="result-card">
+                <h4>Blood Pressure</h4>
+                <div className="result-value">
+                  {capturedData.glucose.formatted_value || "N/A"}
+                </div>
+                <div className="result-meta">
+                  <p>Raw OCR: {capturedData.glucose.raw_text}</p>
+                  {capturedData.weight.confidence && (
+                    <p>Confidence: {capturedData.glucose.confidence}</p>
+                  )}
+                </div>
+                {capturedImages.weight && (
+                  <img
+                    src={capturedImages.glucose}
+                    alt="Glucose scan"
+                    className="result-image"
+                  />
+                )}
+              </div>
+            )}
+
+            {capturedData.endoscope && (
+              <div className="result-card">
+                <h4>Blood Pressure</h4>
+                <div className="result-value">
+                  {capturedData.endoscope.formatted_value || "N/A"}
+                </div>
+                <div className="result-meta">
+                  <p>Raw OCR: {capturedData.endoscope.raw_text}</p>
+                  {capturedData.weight.confidence && (
+                    <p>Confidence: {capturedData.endoscope.confidence}</p>
+                  )}
+                </div>
+                {capturedImages.weight && (
+                  <img
+                    src={capturedImages.endoscope}
+                    alt="Endoscope scan"
+                    className="result-image"
+                  />
+                )}
+              </div>
+            )}
+
+            {!capturedData.temperature &&
+              !capturedData.weight &&
+              !capturedData.blood_pressure &&
+              !capturedData.glucose &&
+              !capturedData.endoscope && (
+                <div className="no-data">
+                  <p>No readings captured yet</p>
+                </div>
+              )}
           </div>
         </div>
       </div>
