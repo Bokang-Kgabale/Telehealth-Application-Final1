@@ -59,7 +59,7 @@ let lastCredentialsFetchTime = 0;
 let iceServers = null;
 
 window.addEventListener('message', (event) => {
-  if (event.origin !== "http://localhost:3000") return;
+  if (event.origin !== "https://fir-rtc-521a2.web.app/") return;
 
   if (event.data.type === "JOIN_ROOM" && event.data.roomId) {
     joinRoom(event.data.roomId).catch(error => {});

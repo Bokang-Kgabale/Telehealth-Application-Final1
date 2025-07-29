@@ -265,7 +265,7 @@ useEffect(() => {
           {showStream ? (
             <div className="stream-view">
               <iframe
-                src="http://127.0.0.1:8001/"
+                src="https://telehealth-application.onrender.com/"
                 title="Video Conferencing"
                 width="100%"
                 height="500px"

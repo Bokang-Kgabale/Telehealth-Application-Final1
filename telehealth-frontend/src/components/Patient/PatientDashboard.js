@@ -237,7 +237,7 @@ const PatientDashboard = () => {
                   type: "JOIN_ROOM",
                   roomId: data.assignedRoom,
                 },
-                "http://127.0.0.1:8001/"
+                "https://telehealth-application.onrender.com/"
               ); // Match iframe origin
             }
           }
@@ -460,7 +460,7 @@ const PatientDashboard = () => {
           <div className="stream-view">
             <iframe
               ref={iframeRef}
-              src="http://127.0.0.1:8001/" // Adjust this URL to your video conferencing app
+              src="https://telehealth-application.onrender.com/" // Adjust this URL to your video conferencing app
               title="Video Conferencing"
               width="100%"
               height="500px"
