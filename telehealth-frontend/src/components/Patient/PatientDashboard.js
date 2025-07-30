@@ -145,7 +145,7 @@ const PatientDashboard = () => {
         });
 
         const baseUrl =
-          process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+          process.env.REACT_APP_API_URL || "https://ocr-backend-application.onrender.com";
         const uploadResponse = await fetch(`${baseUrl}/api/upload/`, {
           method: "POST",
           body: formData,

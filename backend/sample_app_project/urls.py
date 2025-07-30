@@ -24,7 +24,7 @@ URL configuration for sample_app_project project.
 
 from django.urls import path
 from django.http import JsonResponse
-from .views import upload_image, get_captured_data, health_check
+from .views import upload_image, get_captured_data, health_check, debug_env
 
 def root_handler(request):
     """Root URL handler for health checks"""
@@ -37,6 +37,7 @@ def root_handler(request):
 urlpatterns = [
     path('', root_handler, name='root'),  # Handle root path
     path('health/', health_check, name='health-check'),
+    path('debug/', debug_env, name='debug-env'),  # Debug endpoint
     path('api/upload/', upload_image, name='upload-image'),
     path('api/get-data/', get_captured_data, name='get-data'),
 ]

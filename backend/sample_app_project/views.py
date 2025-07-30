@@ -290,3 +290,61 @@ def health_check(request):
             'message': str(e),
             'timestamp': datetime.utcnow().isoformat()
         }, status=500)
+
+@require_http_methods(["GET"])
+def debug_env(request):
+    """Debug endpoint to check environment variables"""
+    try:
+        env_status = {
+            'FIREBASE_CREDENTIALS_JSON': {
+                'exists': bool(os.environ.get('FIREBASE_CREDENTIALS_JSON')),
+                'length': len(os.environ.get('FIREBASE_CREDENTIALS_JSON', '')) if os.environ.get('FIREBASE_CREDENTIALS_JSON') else 0,
+                'is_valid_json': False
+            },
+            'FIREBASE_DATABASE_URL': {
+                'exists': bool(os.environ.get('FIREBASE_DATABASE_URL')),
+                'value': os.environ.get('FIREBASE_DATABASE_URL', 'NOT_SET')
+            },
+            'GOOGLE_APPLICATION_CREDENTIALS_JSON': {
+                'exists': bool(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON')),
+                'length': len(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON', '')) if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON') else 0,
+                'is_valid_json': False
+            },
+            'VISION_KEY': {
+                'exists': bool(os.environ.get('VISION_KEY')),
+                'length': len(os.environ.get('VISION_KEY', '')) if os.environ.get('VISION_KEY') else 0,
+                'is_valid_json': False
+            }
+        }
+        
+        # Test JSON parsing
+        firebase_creds = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+        if firebase_creds:
+            try:
+                json.loads(firebase_creds)
+                env_status['FIREBASE_CREDENTIALS_JSON']['is_valid_json'] = True
+            except:
+                env_status['FIREBASE_CREDENTIALS_JSON']['is_valid_json'] = False
+        
+        vision_creds = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON') or os.environ.get('VISION_KEY')
+        if vision_creds:
+            try:
+                json.loads(vision_creds)
+                key_name = 'GOOGLE_APPLICATION_CREDENTIALS_JSON' if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON') else 'VISION_KEY'
+                env_status[key_name]['is_valid_json'] = True
+            except:
+                key_name = 'GOOGLE_APPLICATION_CREDENTIALS_JSON' if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON') else 'VISION_KEY'
+                env_status[key_name]['is_valid_json'] = False
+        
+        return JsonResponse({
+            'status': 'debug',
+            'environment_variables': env_status,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
