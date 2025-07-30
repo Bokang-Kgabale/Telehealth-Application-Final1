@@ -1,4 +1,6 @@
-/* Base styles */
+/* PatientDashboard.css - Complete Styles with Scrolling Fixes */
+
+/* Base Styles */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -12,7 +14,7 @@ body {
   line-height: 1.6;
 }
 
-/* App container */
+/* App Container */
 .app-container {
   display: flex;
   flex-direction: column;
@@ -29,45 +31,77 @@ body {
   color: white;
   padding: 1rem 2rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   border-bottom: 3px solid #1abc9c;
+  position: relative;
+  z-index: 10;
 }
 
 .app-header h1 {
   font-size: 1.5rem;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.patient-id-header {
+  color: #3498db;
+  font-weight: bold;
+  font-size: 1em;
+}
+
+.back-button {
+  background-color: transparent;
+  color: white;
+  border: 2px solid white;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 1rem;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: white;
+  color: #2c3e50;
 }
 
 .mode-indicator {
-  font-size: 1rem;
-  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: #e74c3c;
+  padding: 5px 15px;
   border-radius: 20px;
-  font-weight: normal;
+  margin-left: 15px;
+  display: inline-block;
 }
 
 .mode-indicator.capture {
-  background-color: #1abc9c;
+  background: #e67e22;
 }
 
 .mode-indicator.stream {
-  background-color: #2ecc71;
+  background: #2ecc71;
 }
 
-/* Main content area */
+/* Main Content Grid */
 .main-content {
   display: grid;
-  grid-template-columns: 250px 1fr 350px;
+  grid-template-columns: 280px 1fr 350px;
   height: calc(100vh - 65px);
+  overflow: hidden;
 }
 
-/* Sidebar */
+/* Left Sidebar */
 .sidebar {
   background-color: #34495e;
   color: white;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .sidebar h3 {
@@ -77,15 +111,20 @@ body {
   color: #ecf0f1;
   text-transform: uppercase;
   letter-spacing: 1px;
+  position: sticky;
+  top: 0;
+  background-color: #34495e;
+  padding-bottom: 1rem;
+  z-index: 1;
 }
 
 .button-group {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-/* General button styles */
 .button {
   padding: 1rem 1.25rem;
   font-size: 1rem;
@@ -106,11 +145,22 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.button:active {
-  transform: translateY(0);
+.start-session-btn {
+  background-color: #2ecc71;
 }
 
-/* Icon styling */
+.start-session-btn:hover {
+  background-color: #27ae60;
+}
+
+.camera-settings-btn {
+  background-color: #3498db;
+}
+
+.camera-settings-btn:hover {
+  background-color: #2980b9;
+}
+
 .icon {
   width: 24px;
   height: 24px;
@@ -120,48 +170,114 @@ body {
   background-repeat: no-repeat;
 }
 
-/* Specific button styles */
-.start-session-btn {
-  background-color: #2ecc71;
-}
-
-.start-session-btn:hover {
-  background-color: #16a085;
-}
-
-.exit-btn {
-  background-color: #e74c3c;
+/* Camera Info Section */
+.camera-info {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
   margin-top: auto;
 }
 
-.exit-btn:hover {
-  background-color: #c0392b;
-}
-
-/* Camera container */
-.camera-container {
+.camera-list {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
-  background-color: #ecf0f1;
-  overflow-y: auto;
+  gap: 0.5rem;
+  margin: 1rem 0;
 }
 
-.camera-view {
-  width: 100%;
+.camera-list p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.camera-list strong {
+  color: #ecf0f1;
+}
+
+.camera-count {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  margin-top: 1rem;
 }
 
-/* Compact Camera Styles */
+.camera-count p {
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: #bdc3c7;
+}
+
+.refresh-btn {
+  background-color: #7f8c8d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  width: 100%;
+  max-width: 120px;
+}
+
+.refresh-btn:hover {
+  background-color: #95a5a6;
+}
+
+/* Center Content Area */
+.camera-view {
+  padding: 1.5rem;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background-color: #ecf0f1;
+}
+
+.enhanced-camera-view {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.enhanced-capture-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.enhanced-btn {
+  padding: 12px 20px;
+  font-weight: 500;
+  border: none;
+  border-radius: 10px;
+  background-color: #3498db;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.enhanced-btn:hover {
+  background-color: #2980b9;
+}
+
+.enhanced-btn.active {
+  background-color: #1a5276;
+}
+
 .compact-camera-container {
-  width: 300px;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
   padding: 15px;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -171,387 +287,321 @@ body {
 .compact-webcam {
   width: 100% !important;
   height: auto !important;
-  max-height: 180px;
+  max-height: 300px;
   border-radius: 6px;
   border: 2px solid #e0e0e0;
 }
 
-/* Capture controls */
-.capture-controls {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  width: 100%;
-}
-
-.capture-type-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  background-color: #06b9e6;
-  color: #2c3e50;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.capture-type-btn:hover {
-  background-color: #d5dbdb;
-}
-
-.capture-type-btn.active {
-  background-color: #3498db;
-  color: white;
-}
-
-.capture-type-btn.active:nth-child(2) {
-  background-color: #9b59b6;
-}
-
-/* Timer display */
 .timer-display {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-bottom: 1rem;
 }
 
 .timer-circle {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   background-color: #3498db;
   color: white;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 0.5rem;
+}
+
+.camera-label {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  margin-top: 0.5rem;
 }
 
 .camera-controls {
   margin-top: 1rem;
-  margin-bottom: 1rem;
+  width: 100%;
   display: flex;
   justify-content: center;
-  width: 100%;
 }
 
-/* Stream view */
+.enhanced-exit-btn {
+  background-color: #e74c3c;
+  padding: 10px 18px;
+  font-size: 14px;
+  color: white;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.enhanced-exit-btn:hover {
+  background-color: #c0392b;
+}
+
+/* Stream View */
 .stream-view {
-  width: 100%;
-  height: 100%;
+  flex: 1; /* This makes it fill available space */
+  min-height: 0; /* Crucial for proper flex behavior */
+  display: flex;
+  flex-direction: column;
 }
 
 .stream-view iframe {
+  flex: 1; /* Fill all available space */
   width: 100%;
-  height: 100%;
-  min-height: 500px;
+  min-height: 400px; /* Minimum height */
+  border: none;
   border-radius: 8px;
 }
 
-/* Empty state */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  text-align: center;
-}
+/* Right Results Panel - Fixed Scrolling */
 
-.empty-content {
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #7f8c8d;
-}
-
-.empty-content h2 {
-  margin: 1rem 0;
+.results-panel h3 {
+  margin-bottom: 1.5rem;
+  font-size: 1.2rem;
   color: #2c3e50;
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #1abc9c;
+  z-index: 10;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
 }
-
-.large {
-  width: 80px;
-  height: 80px;
-  opacity: 0.5;
-}
-
+/* ADD THESE NEW STYLES */
 .results-panel {
-  padding: 20px;
+  width: 350px;
+  padding: 1rem;
   background: #f8f9fa;
-  border-radius: 8px;
-  margin-top: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e1e4e8;
 }
 
+.results-panel h3 {
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  z-index: 10;
+}
+
+.results-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  max-height: calc(100vh - 200px); /* Adjust 200px based on your header height */
+  scrollbar-width: thin;
+  scrollbar-color: #7f8c8d #e1e4e8;
+}
+
+.results-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.results-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.results-content::-webkit-scrollbar-thumb {
+  background: #888;
+}
+
+.results-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Result Cards */
 .result-card {
   background: white;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.result-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.result-card:nth-child(odd) {
+  border-left-color: #3498db;
+}
+
+.result-card:nth-child(even) {
+  border-left-color: #9b59b6;
+}
+
+.result-card h4 {
+  margin-bottom: 0.75rem;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .result-value {
   font-size: 2rem;
-  font-weight: bold;
+  font-weight: 700;
   color: #2c3e50;
-  margin: 10px 0;
+  margin: 0.75rem 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .result-meta {
   color: #7f8c8d;
-  font-size: 0.9rem;
-  margin: 10px 0;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
 }
 
 .result-image {
-  max-width: 200px;
-  border: 1px solid #eee;
-  margin-top: 10px;
+  max-width: 100%;
+  border: 2px solid #eee;
+  border-radius: 8px;
+  margin-top: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
 }
 
-.capture-btn {
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  margin: 5px;
-  border-radius: 4px;
-  cursor: pointer;
+.result-image:hover {
+  transform: scale(1.02);
 }
 
+/* No Data State */
 .no-data {
   text-align: center;
-  padding: 20px;
+  padding: 3rem 2rem;
+  color: #95a5a6;
+  background-color: rgba(149, 165, 166, 0.05);
+  border-radius: 12px;
+  border: 2px dashed #bdc3c7;
+  margin: 1rem 0;
 }
 
-.data-cards {
+.no-data p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.no-data::before {
+  content: "📊";
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+/* Loading State */
+.results-loading {
   display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
   flex-direction: column;
   gap: 1rem;
-  max-height: 60vh; /* Optional: if you want this section to have its own scroll */
-  overflow-y: auto;
 }
 
-/* Captured images container */
-.captured-images-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.results-spinner {
+  border: 3px solid #e1e4e8;
+  border-top-color: #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
 }
 
-.captured-image-card {
-  background-color: #faf8f8;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.captured-image-card h4 {
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-  color: #2c3e50;
-  text-align: center;
-}
-
-.captured-image {
-  width: 100%;
-  height: auto;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-
-.data-display {
-  padding: 0.5rem;
-  background-color: white;
-  border-radius: 6px;
-}
-
-.data-value {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-  text-align: center;
-}
-
-.data-raw {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  word-break: break-word;
-  text-align: center;
-}
-
-.no-data {
-  text-align: center;
-  color: #95a5a6;
-  padding: 2rem 0;
-}
-
-/* Icons */
-.temperature-icon {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z'%3E%3C/path%3E%3C/svg%3E");
-}
-
-.weight-icon {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 16v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m4 0h4a2 2 0 0 1 2 2v4M9 11l3 3L22 4'%3E%3C/path%3E%3C/svg%3E");
-}
-
-.stream-icon {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 7l-7 5 7 5V7z'%3E%3C/path%3E%3Crect x='1' y='5' width='15' height='14' rx='2' ry='2'%3E%3C/rect%3E%3C/svg%3E");
-}
-
-.camera-icon {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 7l-7 5 7 5V7z'%3E%3C/path%3E%3Crect x='1' y='5' width='15' height='14' rx='2' ry='2'%3E%3C/rect%3E%3C/svg%3E");
-}
-
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-  .main-content {
-    grid-template-columns: 250px 1fr;
-    grid-template-rows: auto auto;
-  }
-  
-  .results-panel {
-    grid-column: span 2;
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid #e1e4e8;
-  }
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-  }
-  
-  .sidebar {
-    width: 100%;
-  }
-
-  .capture-controls {
-    flex-direction: column;
-  }
-
-  .compact-camera-container {
-    width: 100%;
-    max-width: 300px;
-  }
-}
+/* Modals */
 .modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0,0,0,0.6);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: 1000;
 }
 
 .modal {
   background: #fff;
   padding: 20px;
   border-radius: 12px;
-  width: 300px;
+  width: 90%;
+  max-width: 400px;
   text-align: center;
+}
+
+.modal h3 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
 }
 
 .modal input {
   width: 100%;
-  padding: 8px;
-  margin-top: 10px;
-  margin-bottom: 15px;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 15px;
 }
 
 .modal-buttons button {
-  margin: 5px;
-  padding: 6px 12px;
-  cursor: pointer;
-}
-/* Add these styles to your PatientDashboard.css file */
-
-/* Camera Info Section */
-.camera-info {
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  padding: 15px;
-  margin-top: 20px;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.camera-info h4 {
-  margin-bottom: 10px;
-  color: #333;
-  font-size: 16px;
-}
-
-.camera-list {
-  margin-bottom: 15px;
-  text-align: left;
-  padding: 0 10px;
-}
-
-.camera-list p {
-  margin: 8px 0;
-  font-size: 14px;
-  color: #555;
-}
-
-.camera-list strong {
-  color: #333;
-}
-
-/* Camera Count Section */
-.camera-count {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.camera-count p {
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #666;
-}
-
-/* Refresh Button */
-.refresh-btn {
-  background-color: #4a90e2;
-  color: white;
+  padding: 10px 20px;
   border: none;
   border-radius: 4px;
-  padding: 8px 16px;
-  font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 120px;
+  font-weight: 500;
 }
 
-.refresh-btn:hover {
-  background-color: #357ab8;
+.modal-buttons button:first-child {
+  background-color: #2ecc71;
+  color: white;
 }
 
-.refresh-btn:active {
-  background-color: #2a5f95;
+.modal-buttons button:first-child:hover {
+  background-color: #27ae60;
 }
 
-/* Camera Selection Modal */
+.modal-buttons button:last-child {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.modal-buttons button:last-child:hover {
+  background-color: #c0392b;
+}
+
 .camera-modal {
-  max-width: 400px;
+  max-width: 450px;
 }
 
 .camera-options {
@@ -559,74 +609,6 @@ body {
   flex-direction: column;
   gap: 10px;
   margin: 15px 0;
-}
-
-.camera-option-btn {
-  padding: 10px 15px;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.camera-option-btn:hover {
-  background-color: #e0e0e0;
-  border-color: #ccc;
-}
-
-.camera-option-btn:active {
-  background-color: #d0d0d0;
-}
-/* Camera Settings Button */
-.camera-settings-btn {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 10px 15px;
-  margin: 10px 0;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.camera-settings-btn:hover {
-  background-color: #5a6268;
-}
-
-.camera-settings-btn:active {
-  background-color: #484e53;
-}
-
-.camera-settings-btn .icon {
-  margin-right: 8px;
-}
-
-/* Camera Selection Modal Enhancements */
-.camera-modal {
-  max-width: 450px;
-  width: 90%;
-  padding: 20px;
-}
-
-.camera-modal h3 {
-  color: #2c3e50;
-  margin-bottom: 20px;
-  text-align: center;
-  font-size: 1.2rem;
-}
-
-.camera-options {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin: 20px 0;
   max-height: 300px;
   overflow-y: auto;
   padding: 5px;
@@ -640,151 +622,45 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
-  display: flex;
-  align-items: center;
 }
 
 .camera-option-btn:hover {
   background-color: #e9ecef;
-  border-color: #ced4da;
-  transform: translateY(-1px);
 }
 
-.camera-option-btn:active {
-  background-color: #dee2e6;
-}
-
-.camera-option-btn.selected {
-  background-color: #4a90e2;
-  color: white;
-  border-color: #357ab8;
-}
-
-/* Modal Buttons Container */
-.modal-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-  gap: 10px;
-}
-
-.modal-buttons button {
-  flex: 1;
-  padding: 10px;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.modal-buttons button:first-child {
-  background-color: #33e210;
-  color: white;
-}
-
-.modal-buttons button:first-child:hover {
-  background-color: #33e210;
-}
-
-.modal-buttons button:last-child {
-  background-color: #4a90e2;
-  color: white;
-}
-
-.modal-buttons button:last-child:hover {
-  background-color: #357ab8;
-}
-
-/* No Cameras Detected Message */
-.camera-modal .no-cameras {
-  text-align: center;
-  color: #6c757d;
-  padding: 20px;
-  font-size: 0.9rem;
-}
-
-/* Camera Icon in List */
-.camera-icon-list {
-  margin-right: 10px;
-  color: #4a90e2;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  .camera-modal {
-    width: 95%;
-    padding: 15px;
-  }
-  
-  .camera-options {
-    grid-template-columns: 1fr;
-  }
-  
-  .modal-buttons {
-    flex-direction: column;
-  }
-}
-/* Add to your PatientDashboard.css */
-.app-header h1 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.patient-id-header {
-  color: #3498db;
-  font-weight: bold;
-  font-size: 1em;
-}
-
-.mode-indicator {
-  font-size: 0.9rem;
-  background: #e74c3c;
-  padding: 5px 15px;
-  border-radius: 20px;
-  margin-left: 15px;
-  display: inline-block;
-}
-
-.mode-indicator.capture {
-  background: #e67e22;
-}
-
-.mode-indicator.stream {
-  background: #2ecc71;
-}
-/* Message Notification Styles */
+/* Message Notification */
 .message-notification {
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    width: 300px;
-    z-index: 1000;
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 300px;
+  z-index: 1000;
 }
 
 .alert {
-    padding: 15px;
-    border-radius: 5px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .alert-info {
-    background-color: #d1ecf1;
-    border-left: 5px solid #0dcaf0;
+  background-color: #d1ecf1;
+  border-left: 5px solid #0dcaf0;
 }
 
 .alert-waiting {
-    background-color: #fff3cd;
-    border-left: 5px solid #ffc107;
+  background-color: #fff3cd;
+  border-left: 5px solid #ffc107;
 }
 
 .room-assignment {
-    font-weight: bold;
-    margin-top: 10px;
-    color: #0d6efd;
+  font-weight: bold;
+  margin-top: 10px;
+  color: #0d6efd;
 }
-/*Debug Info Page Styles*/
+
+/* Debug Link */
 .debug-link {
   position: fixed;
   bottom: 10px;
@@ -801,86 +677,62 @@ body {
 .debug-link:hover {
   background: #e0e0e0;
 }
-.enhanced-camera-view {
-  background: #f9f9f9;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  margin: 20px 0;
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  .main-content {
+    grid-template-columns: 250px 1fr;
+  }
+  
+  
+  .results-panel {
+    grid-column: 1 / -1;
+    border-top: 1px solid #e1e4e8;
+  }
 }
 
-.enhanced-capture-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  margin-bottom: 20px;
+@media (max-width: 768px) {
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .stream-view iframe {
+    min-height: 250px;
+  }
 }
 
-.enhanced-btn {
-  padding: 12px 20px;
-  font-weight: 500;
-  border: none;
-  border-radius: 10px;
-  background-color: #0066ff;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-.enhanced-btn:hover {
-  background-color: #004ccc;
-}
-.enhanced-btn.active {
-  background-color: #003399;
-}
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+  }
 
-.enhanced-camera-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 10px;
-}
+  .app-header h1 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+  }
 
-.enhanced-webcam {
-  border-radius: 12px;
-  overflow: hidden;
-  width: 480px;
-  height: 360px;
-  object-fit: cover;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
-  margin-bottom: 10px;
-}
+  .back-button {
+    margin-bottom: 0.5rem;
+  }
 
-.enhanced-timer {
-  text-align: center;
-  margin-bottom: 10px;
-}
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  
+  .sidebar, .results-panel {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+  }
 
-.enhanced-exit-btn {
-  background-color: #e74c3c;
-  padding: 10px 18px;
-  font-size: 14px;
-  color: white;
-  border-radius: 8px;
-  border: none;
-}
-.enhanced-exit-btn:hover {
-  background-color: #c0392b;
-}
-.back-button {
-  background-color: transparent;
-  color: var(--white);
-  border: 2px solid var(--white);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  margin-right: var(--spacing-md);
-  transition: background-color 0.2s ease, color 0.2s ease;
-  align-self: center; /* vertically center in header */
-}
+  .compact-camera-container {
+    width: 100%;
+  }
 
-.back-button:hover {
-  background-color: var(--white);
-  color: var(--primary-color);
+  .enhanced-capture-controls {
+    flex-direction: column;
+  }
 }

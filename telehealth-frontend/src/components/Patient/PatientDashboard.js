@@ -5,7 +5,7 @@ import { getDatabase, ref, onValue, off } from "firebase/database";
 import MessageNotification from "../Message/MessageNotification";
 import { Link } from "react-router-dom"; // Import Link for debug info navigation
 import "./PatientDashboard.css";
-
+//endoscope is a special case and needs to be handled differently by a doctor
 const PatientDashboard = () => {
   // Get patient UUID from navigation state or session storage
   const { state } = useLocation();
@@ -36,11 +36,11 @@ const PatientDashboard = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [activeCapture, setActiveCapture] = useState(null);
   const [capturedData, setCapturedData] = useState({
-    temperature: null,
-    weight: null,
-    blood_pressure: null,
-    glucose: null,
-    endoscope: null,
+    temperature: {},
+    weight: {},
+    blood_pressure: {},
+    glucose: {},
+    endoscope: {},
   });
   const [roomId, setRoomId] = useState("");
   const [showRoomIdModal, setShowRoomIdModal] = useState(false);
@@ -118,66 +118,48 @@ const PatientDashboard = () => {
       try {
         setIsCapturing(true);
 
-        // Convert data URL to blob
         const response = await fetch(imageSrc);
         if (!response.ok) {
           throw new Error("Failed to process captured image");
         }
 
         const blob = await response.blob();
-
-        // Validate blob
         if (blob.size === 0) {
           throw new Error("Captured image is empty");
         }
 
-        console.log(`Image blob size: ${blob.size} bytes`);
-
         const formData = new FormData();
         formData.append("image", blob, `${type}_${Date.now()}.jpg`);
         formData.append("type", type);
-        formData.append("roomId", roomId || "default-room");
-
-        console.log("FormData prepared:", {
-          imageSize: blob.size,
-          type: type,
-          roomId: roomId || "default-room",
-        });
+        // Use assignedRoom first, then roomId, then default
+        formData.append("roomId", assignedRoom || roomId || "default-room");
 
         const baseUrl =
-          process.env.REACT_APP_API_URL || "https://ocr-backend-application.onrender.com";
+          process.env.REACT_APP_API_URL ||
+          "https://ocr-backend-application.onrender.com";
         const uploadResponse = await fetch(`${baseUrl}/api/upload/`, {
           method: "POST",
           body: formData,
-          // Don't set Content-Type header - let browser set it with boundary
         });
 
-        console.log("Upload response status:", uploadResponse.status);
-        console.log("Upload response headers:", uploadResponse.headers);
-
         if (!uploadResponse.ok) {
-          let errorMessage = `HTTP ${uploadResponse.status}`;
-          try {
-            const errorData = await uploadResponse.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-            console.error("Server error response:", errorData);
-          } catch (e) {
-            const errorText = await uploadResponse.text();
-            errorMessage = errorText || errorMessage;
-            console.error("Server error text:", errorText);
-          }
-          throw new Error(errorMessage);
+          throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
 
         const data = await uploadResponse.json();
-        console.log("Upload successful:", data);
 
-        setCapturedData((prev) => ({ ...prev, [type]: data.data }));
+        // FIXED: Add null safety for confidence property
+        const processedData = {
+          formatted_value: data.data?.formatted_value || "Processing...",
+          raw_text: data.data?.raw_text || "No text detected",
+          confidence: data.data?.confidence || 0, // Changed from "unknown" to 0
+          ...data.data,
+        };
+
+        setCapturedData((prev) => ({ ...prev, [type]: processedData }));
 
         setCurrentMessage({
-          content: `Successfully captured ${type}: ${
-            data.data?.formatted_value || "Processing..."
-          }`,
+          content: `Successfully captured ${type}: ${processedData.formatted_value}`,
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
@@ -191,7 +173,7 @@ const PatientDashboard = () => {
         setIsCapturing(false);
       }
     },
-    [roomId]
+    [roomId, assignedRoom] // Added assignedRoom to dependencies
   );
 
   const captureImage = useCallback(
@@ -314,7 +296,10 @@ const PatientDashboard = () => {
   };
 
   const handleConfirmRoomId = () => {
-    if (roomId.trim()) {
+    const finalRoomId = assignedRoom || roomId.trim();
+
+    if (finalRoomId) {
+      setRoomId(finalRoomId);
       setShowRoomIdModal(false);
       setActiveCapture(pendingCaptureType);
       setTimer(5);
@@ -324,7 +309,12 @@ const PatientDashboard = () => {
   const handleCapture = (type) => {
     setPendingCaptureType(type);
 
-    if (cameraDevices.length > 1) {
+    // Use assignedRoom if available, otherwise show modal for manual input
+    if (assignedRoom) {
+      setRoomId(assignedRoom); // Set the room ID from assigned room
+      setActiveCapture(type);
+      setTimer(5);
+    } else if (cameraDevices.length > 1) {
       setCameraSelectionModal(true);
     } else {
       setShowRoomIdModal(true);
@@ -338,7 +328,15 @@ const PatientDashboard = () => {
         [pendingCaptureType]: deviceId,
       }));
       setCameraSelectionModal(false);
-      setShowRoomIdModal(true);
+
+      // Use assignedRoom if available, otherwise show room ID modal
+      if (assignedRoom) {
+        setRoomId(assignedRoom);
+        setActiveCapture(pendingCaptureType);
+        setTimer(5);
+      } else {
+        setShowRoomIdModal(true);
+      }
     }
   };
 
@@ -374,7 +372,6 @@ const PatientDashboard = () => {
           </h2>
         )}
       </header>
-
       <div className="main-content">
         <MessageNotification
           currentMessage={currentMessage}
@@ -433,7 +430,7 @@ const PatientDashboard = () => {
                 "weight",
                 "blood_pressure",
                 "glucose",
-                "endoscope",
+                //"endoscope",
               ].map((type) => (
                 <button
                   key={type}
@@ -506,17 +503,18 @@ const PatientDashboard = () => {
         <div className="results-panel">
           <h3>Patient Vitals</h3>
           <div className="results-content">
+            {/* Temperature Reading */}
             {capturedData.temperature && (
               <div className="result-card">
                 <h4>Temperature Reading</h4>
                 <div className="result-value">
-                  {capturedData.temperature.formatted_value || "N/A"}
+                  {capturedData.temperature?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.temperature.raw_text}</p>
-                  {capturedData.temperature.confidence && (
-                    <p>Confidence: {capturedData.temperature.confidence}</p>
-                  )}
+                  <p>Raw OCR: {capturedData.temperature?.raw_text || "N/A"}</p>
+                  <p>
+                    Confidence: {capturedData.temperature?.confidence || "N/A"}
+                  </p>
                 </div>
                 {capturedImages.temperature && (
                   <img
@@ -528,17 +526,16 @@ const PatientDashboard = () => {
               </div>
             )}
 
+            {/* Weight Reading */}
             {capturedData.weight && (
               <div className="result-card">
                 <h4>Weight Reading</h4>
                 <div className="result-value">
-                  {capturedData.weight.formatted_value || "N/A"}
+                  {capturedData.weight?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.weight.raw_text}</p>
-                  {capturedData.weight.confidence && (
-                    <p>Confidence: {capturedData.weight.confidence}</p>
-                  )}
+                  <p>Raw OCR: {capturedData.weight?.raw_text || "N/A"}</p>
+                  <p>Confidence: {capturedData.weight?.confidence || "N/A"}</p>
                 </div>
                 {capturedImages.weight && (
                   <img
@@ -550,19 +547,23 @@ const PatientDashboard = () => {
               </div>
             )}
 
+            {/* Blood Pressure */}
             {capturedData.blood_pressure && (
               <div className="result-card">
                 <h4>Blood Pressure</h4>
                 <div className="result-value">
-                  {capturedData.blood_pressure.formatted_value || "N/A"}
+                  {capturedData.blood_pressure?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.blood_pressure.raw_text}</p>
-                  {capturedData.weight.confidence && (
-                    <p>Confidence: {capturedData.blood_pressure.confidence}</p>
-                  )}
+                  <p>
+                    Raw OCR: {capturedData.blood_pressure?.raw_text || "N/A"}
+                  </p>
+                  <p>
+                    Confidence:{" "}
+                    {capturedData.blood_pressure?.confidence || "N/A"}
+                  </p>
                 </div>
-                {capturedImages.weight && (
+                {capturedImages.blood_pressure && (
                   <img
                     src={capturedImages.blood_pressure}
                     alt="Blood Pressure scan"
@@ -572,19 +573,18 @@ const PatientDashboard = () => {
               </div>
             )}
 
+            {/* Glucose */}
             {capturedData.glucose && (
               <div className="result-card">
-                <h4>Blood Pressure</h4>
+                <h4>Glucose</h4>
                 <div className="result-value">
-                  {capturedData.glucose.formatted_value || "N/A"}
+                  {capturedData.glucose?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.glucose.raw_text}</p>
-                  {capturedData.weight.confidence && (
-                    <p>Confidence: {capturedData.glucose.confidence}</p>
-                  )}
+                  <p>Raw OCR: {capturedData.glucose?.raw_text || "N/A"}</p>
+                  <p>Confidence: {capturedData.glucose?.confidence || "N/A"}</p>
                 </div>
-                {capturedImages.weight && (
+                {capturedImages.glucose && (
                   <img
                     src={capturedImages.glucose}
                     alt="Glucose scan"
@@ -594,19 +594,20 @@ const PatientDashboard = () => {
               </div>
             )}
 
+            {/* Endoscope */}
             {capturedData.endoscope && (
               <div className="result-card">
-                <h4>Blood Pressure</h4>
+                <h4>Endoscope</h4>
                 <div className="result-value">
-                  {capturedData.endoscope.formatted_value || "N/A"}
+                  {capturedData.endoscope?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.endoscope.raw_text}</p>
-                  {capturedData.weight.confidence && (
-                    <p>Confidence: {capturedData.endoscope.confidence}</p>
-                  )}
+                  <p>Raw OCR: {capturedData.endoscope?.raw_text || "N/A"}</p>
+                  <p>
+                    Confidence: {capturedData.endoscope?.confidence || "N/A"}
+                  </p>
                 </div>
-                {capturedImages.weight && (
+                {capturedImages.endoscope && (
                   <img
                     src={capturedImages.endoscope}
                     alt="Endoscope scan"
@@ -615,7 +616,6 @@ const PatientDashboard = () => {
                 )}
               </div>
             )}
-
             {!capturedData.temperature &&
               !capturedData.weight &&
               !capturedData.blood_pressure &&
@@ -628,19 +628,48 @@ const PatientDashboard = () => {
           </div>
         </div>
       </div>
-
       {showRoomIdModal && (
         <div className="modal-backdrop">
           <div className="modal">
-            <h3>Enter Room ID</h3>
-            <input
-              type="text"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              placeholder="Room ID"
-            />
+            <h3>Room Assignment</h3>
+
+            {assignedRoom ? (
+              <div>
+                <p>You have been assigned to room:</p>
+                <div
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: "bold",
+                    color: "#2ecc71",
+                    margin: "1rem 0",
+                    padding: "0.5rem",
+                    backgroundColor: "#f0f8f5",
+                    borderRadius: "8px",
+                  }}
+                >
+                  {assignedRoom}
+                </div>
+                <p>Click confirm to proceed with capture.</p>
+              </div>
+            ) : (
+              <div>
+                <p>No room assigned yet. Enter room ID manually:</p>
+                <input
+                  type="text"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  placeholder="Enter Room ID"
+                />
+              </div>
+            )}
+
             <div className="modal-buttons">
-              <button onClick={handleConfirmRoomId}>Confirm</button>
+              <button
+                onClick={handleConfirmRoomId}
+                disabled={!assignedRoom && !roomId.trim()}
+              >
+                Confirm
+              </button>
               <button
                 onClick={() => {
                   setShowRoomIdModal(false);
@@ -654,7 +683,20 @@ const PatientDashboard = () => {
           </div>
         </div>
       )}
-
+      {assignedRoom && (
+        <div
+          style={{
+            backgroundColor: "#2ecc71",
+            color: "white",
+            padding: "5px 15px",
+            borderRadius: "20px",
+            fontSize: "0.9rem",
+            marginLeft: "15px",
+          }}
+        >
+          Room: {assignedRoom}
+        </div>
+      )}
       {cameraSelectionModal && (
         <div className="modal-backdrop">
           <div className="modal camera-modal">
