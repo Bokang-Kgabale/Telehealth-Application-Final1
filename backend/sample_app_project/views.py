@@ -93,7 +93,7 @@ class OCRService:
         'temperature': r"(\d{2}\.?\d?\s?[°℃CF])|(\d{2}\.?\d?)",
         'weight': r"(\d{2,3}\.?\d?\s?[kK][gG])|(\d{2,3}\.?\d?)",
         'glucose': r"(\d{2,3}\.?\d?\s?(mg/dL|mmol/L)?)|(\d{2,3}\.?\d?)",
-        'blood_pressure': r"\b(\d{2,3})[\/\-](\d{2,3})\b",
+        'blood_pressure': r"\b(\d{2,3})[\/\-](\d{2,3})\s*(mmHg|mmhg|MMHG)?\b",
         'endoscope': r".+"
     }
 

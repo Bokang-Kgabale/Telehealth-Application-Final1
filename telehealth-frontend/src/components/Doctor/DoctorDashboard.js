@@ -119,6 +119,7 @@ const DoctorDashboard = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // The data is already in the correct format from the API
         setCapturedData(data.data);
       } else {
         console.error(data.error);
@@ -126,6 +127,7 @@ const DoctorDashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching captured data:", error);
+      setCapturedData(null);
     } finally {
       setLoading(false);
     }
@@ -331,26 +333,59 @@ const DoctorDashboard = () => {
               </div>
             ) : capturedData ? (
               <div className="data-cards">
-                {capturedData.temperature &&
-                  capturedData.temperature.length > 0 && (
-                    <div className="data-card temperature-card spaced-card">
-                      <h4>Temperature Data</h4>
-                      <div className="data-value">
-                        {capturedData.temperature[0].formatted_value}
-                      </div>
-                      <div className="data-raw">
-                        Raw: {capturedData.temperature[0].raw_text}
-                      </div>
+                {capturedData.temperature && (
+                  <div className="data-card temperature-card spaced-card">
+                    <h4>Temperature Data</h4>
+                    <div className="data-value">
+                      {capturedData.temperature.formatted_value}
                     </div>
-                  )}
-                {capturedData.weight && capturedData.weight.length > 0 && (
+                    <div className="data-raw">
+                      Raw: {capturedData.temperature.raw_text}
+                    </div>
+                    <div className="data-confidence">
+                      Confidence: {capturedData.temperature.confidence}
+                    </div>
+                  </div>
+                )}
+                {capturedData.weight && (
                   <div className="data-card weight-card spaced-card">
                     <h4>Weight Data</h4>
                     <div className="data-value">
-                      {capturedData.weight[0].formatted_value}
+                      {capturedData.weight.formatted_value}
                     </div>
                     <div className="data-raw">
-                      Raw: {capturedData.weight[0].raw_text}
+                      Raw: {capturedData.weight.raw_text}
+                    </div>
+                    <div className="data-confidence">
+                      Confidence: {capturedData.weight.confidence}
+                    </div>
+                  </div>
+                )}
+                {capturedData.glucose && (
+                  <div className="data-card glucose-card spaced-card">
+                    <h4>Glucose Data</h4>
+                    <div className="data-value">
+                      {capturedData.glucose.formatted_value}
+                    </div>
+                    <div className="data-raw">
+                      Raw: {capturedData.glucose.raw_text}
+                    </div>
+                    <div className="data-confidence">
+                      Confidence: {capturedData.glucose.confidence}
+                    </div>
+                  </div>
+                )}
+                {capturedData.blood_pressure && (
+                  <div className="data-card blood-pressure-card spaced-card">
+                    <h4>Blood Pressure</h4>
+                    <div className="data-value">
+                      {capturedData.blood_pressure.formatted_value}
+                    </div>
+                    <div className="data-raw">
+                      Raw: {capturedData.blood_pressure.raw_text}
+                    </div>
+                    <div className="data-confidence">
+                      Confidence: {capturedData.blood_pressure.confidence}
                     </div>
                   </div>
                 )}

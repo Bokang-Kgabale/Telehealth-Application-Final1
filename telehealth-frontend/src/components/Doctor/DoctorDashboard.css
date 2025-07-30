@@ -821,7 +821,17 @@ body {
         text-align: center;
     }
 }
+.data-confidence {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
 
+.data-confidence:before {
+  content: "Confidence: ";
+  font-weight: bold;
+}
 /* ===== Utility Classes ===== */
 .text-center { text-align: center; }
 .text-left { text-align: left; }
