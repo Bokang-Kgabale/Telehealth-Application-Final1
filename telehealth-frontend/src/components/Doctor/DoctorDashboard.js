@@ -308,23 +308,32 @@ const DoctorDashboard = () => {
           <h3>Patient Vitals</h3>
 
           <div className="search-section">
-            <div className="search-container">
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Search by Room ID..."
-                value={currentRoomId || searchQuery} // Auto-fills with currentRoomId when available
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <button
-                className="search-button"
-                onClick={fetchCapturedData}
-                disabled={!currentRoomId && !searchQuery} // Disable if no room ID
-              >
-                🔍
-              </button>
-            </div>
-          </div>
+  <div className="search-container">
+    <input
+      type="text"
+      className="search-input"
+      placeholder="Search by Room ID..."
+      value={searchQuery} // Only show searchQuery
+      onChange={(e) => setSearchQuery(e.target.value)}
+    />
+    <button
+      className="search-button"
+      onClick={fetchCapturedData}
+      disabled={!searchQuery} // Only disable if searchQuery is empty
+    >
+      🔍
+    </button>
+    {currentRoomId && !searchQuery && (
+      <button 
+        className="fill-room-button"
+        onClick={() => setSearchQuery(currentRoomId)}
+        title="Fill current room ID"
+      >
+        Use Current Room
+      </button>
+    )}
+  </div>
+</div>
 
           <div className="results-content">
             {loading ? (

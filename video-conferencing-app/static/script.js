@@ -399,7 +399,7 @@ async function startVideoCall() {
     hangUpBtn.disabled = false;
 
     const parentOrigin =
-      window.location.ancestorOrigins?.[0] || "http://localhost:3000";
+      window.location.ancestorOrigins?.[0] || "https://fir-rtc-521a2.web.app";
 
     const message = {
       type: "ROOM_CREATED",

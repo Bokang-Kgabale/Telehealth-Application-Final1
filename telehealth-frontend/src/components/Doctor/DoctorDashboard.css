@@ -832,6 +832,18 @@ body {
   content: "Confidence: ";
   font-weight: bold;
 }
+.fill-room-button {
+  margin-left: 8px;
+  padding: 5px 10px;
+  background-color: #e0e0e0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fill-room-button:hover {
+  background-color: #d0d0d0;
+}
 /* ===== Utility Classes ===== */
 .text-center { text-align: center; }
 .text-left { text-align: left; }
