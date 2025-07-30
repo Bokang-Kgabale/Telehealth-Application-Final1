@@ -22,8 +22,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('telehealth.log'),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Only console logging for Render
     ]
 )
 logger = logging.getLogger(__name__)
@@ -43,35 +42,50 @@ def initialize_services():
             firebase_url = os.environ.get('FIREBASE_DATABASE_URL')
             
             if not firebase_creds_json or not firebase_url:
-                raise ValueError("Missing Firebase credentials or database URL")
+                logger.error("Missing Firebase credentials or database URL")
+                return False
             
-            firebase_creds = credentials.Certificate(json.loads(firebase_creds_json))
-            firebase_admin.initialize_app(
-                firebase_creds,
-                {'databaseURL': firebase_url}
-            )
-            firebase_initialized = True
-            logger.info("Firebase initialized successfully")
+            try:
+                firebase_creds = credentials.Certificate(json.loads(firebase_creds_json))
+                firebase_admin.initialize_app(
+                    firebase_creds,
+                    {'databaseURL': firebase_url}
+                )
+                firebase_initialized = True
+                logger.info("Firebase initialized successfully")
+            except Exception as e:
+                logger.error(f"Firebase initialization failed: {str(e)}")
+                return False
         
         # Initialize Google Vision
         if vision_client is None:
-            vision_creds_json = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+            # Check for credentials in environment
+            vision_creds_json = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON') or os.environ.get('VISION_KEY')
             if vision_creds_json:
-                # Create temporary credentials file
-                import tempfile
-                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
-                    f.write(vision_creds_json)
-                    temp_creds_path = f.name
-                
-                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_creds_path
-                vision_client = vision.ImageAnnotatorClient()
-                logger.info("Google Vision initialized successfully")
+                try:
+                    # Create temporary credentials file
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+                        if isinstance(vision_creds_json, str):
+                            f.write(vision_creds_json)
+                        else:
+                            json.dump(vision_creds_json, f)
+                        temp_creds_path = f.name
+                    
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_creds_path
+                    vision_client = vision.ImageAnnotatorClient()
+                    logger.info("Google Vision initialized successfully")
+                except Exception as e:
+                    logger.error(f"Google Vision initialization failed: {str(e)}")
+                    return False
             else:
-                raise ValueError("Missing Google Vision credentials")
+                logger.error("Missing Google Vision credentials")
+                return False
                 
         return True
     except Exception as e:
         logger.error(f"Service initialization failed: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
 class OCRService:
@@ -80,8 +94,7 @@ class OCRService:
         'weight': r"(\d{2,3}\.?\d?\s?[kK][gG])|(\d{2,3}\.?\d?)",
         'glucose': r"(\d{2,3}\.?\d?\s?(mg/dL|mmol/L)?)|(\d{2,3}\.?\d?)",
         'blood_pressure': r"\b(\d{2,3})[\/\-](\d{2,3})\b",
-        'endoscope': r".+"  # You may refine this depending on what data you expect from endoscopy images
-
+        'endoscope': r".+"
     }
 
     @classmethod
@@ -96,7 +109,7 @@ class OCRService:
         if not flat_matches:
             return None
 
-        value = re.sub(r"[^\d./]", "", flat_matches[0])  # Keep digits, dot, and slash
+        value = re.sub(r"[^\d./]", "", flat_matches[0])
 
         try:
             if capture_type == 'temperature':
@@ -116,7 +129,6 @@ class OCRService:
                 return value
         except ValueError:
             return None
-
 
     @classmethod
     def process_image(cls, image_bytes, capture_type):
@@ -148,6 +160,9 @@ class OCRService:
 def save_to_firebase(room_id, capture_type, data):
     """Save data to Firebase"""
     try:
+        if not firebase_initialized:
+            raise Exception("Firebase not initialized")
+            
         path = f'telehealth_data/{room_id}/{capture_type}'
         ref = db.reference(path)
         ref.set(data)
@@ -180,7 +195,6 @@ def upload_image(request):
         
         # Process image
         try:
-            # Convert image to JPEG bytes
             with Image.open(image_file) as img:
                 if img.mode == 'RGBA':
                     img = img.convert('RGB')
@@ -223,6 +237,9 @@ def upload_image(request):
 def get_captured_data(request):
     """Retrieve captured data from Firebase"""
     try:
+        if not initialize_services():
+            raise Exception("Failed to initialize Firebase")
+            
         room_id = request.GET.get("roomId")
         if not room_id:
             raise ValueError("Missing roomId parameter")
@@ -251,12 +268,25 @@ def get_captured_data(request):
 @require_http_methods(["GET"])
 def health_check(request):
     """Health check endpoint"""
-    services_ok = initialize_services()
-    return JsonResponse({
-        'status': 'healthy' if services_ok else 'unhealthy',
-        'timestamp': datetime.utcnow().isoformat(),
-        'services': {
-            'firebase': 'active' if firebase_initialized else 'inactive',
-            'vision': 'active' if vision_client else 'inactive'
-        }
-    })
+    try:
+        services_ok = initialize_services()
+        return JsonResponse({
+            'status': 'healthy' if services_ok else 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'services': {
+                'firebase': 'active' if firebase_initialized else 'inactive',
+                'vision': 'active' if vision_client else 'inactive'
+            },
+            'environment_vars': {
+                'firebase_creds': 'present' if os.environ.get('FIREBASE_CREDENTIALS_JSON') else 'missing',
+                'firebase_url': 'present' if os.environ.get('FIREBASE_DATABASE_URL') else 'missing',
+                'vision_creds': 'present' if (os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON') or os.environ.get('VISION_KEY')) else 'missing'
+            }
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }, status=500)

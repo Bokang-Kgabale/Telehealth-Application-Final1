@@ -8,41 +8,37 @@ from dotenv import load_dotenv
 
 def main():
     """Run administrative tasks."""
-    # Set the base path to your backend directory
-    backend_path = Path("C:/Users/bokan/Documents/Coding Projects/Kinetix Engineering Tech/Telehealth-Application/backend")
+    # Load environment variables - work with both local and deployed environments
+    if Path(".env").exists():
+        load_dotenv()
     
-    # Load environment variables from specific .env path
-    env_path = backend_path / ".env"
-    if env_path.exists():
-        load_dotenv(dotenv_path=env_path)
-    else:
-        print(f"Warning: Could not find .env file at {env_path}")
-
     # Configure Google Vision credentials from environment
-    vision_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    # Check both possible environment variable names
+    vision_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON") or os.environ.get("VISION_KEY")
+    
     if vision_creds_json:
         try:
-            # Try to parse as JSON string first
-            vision_creds = json.loads(vision_creds_json)
-            vision_key_path = backend_path / "config/vision-key.json"
-            vision_key_path.parent.mkdir(parents=True, exist_ok=True)
+            # Parse JSON credentials
+            if isinstance(vision_creds_json, str):
+                vision_creds = json.loads(vision_creds_json)
+            else:
+                vision_creds = vision_creds_json
+            
+            # Create config directory and save credentials
+            config_dir = Path("config")
+            config_dir.mkdir(exist_ok=True)
+            vision_key_path = config_dir / "vision-key.json"
             
             with open(vision_key_path, "w") as f:
                 json.dump(vision_creds, f)
             
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(vision_key_path)
-            print(f"Google Vision credentials saved to: {vision_key_path}")
-        except json.JSONDecodeError:
-            # If parsing fails, treat as file path
-            cred_path = Path(vision_creds_json)
-            if not cred_path.is_absolute():
-                cred_path = backend_path / cred_path
-                
-            if cred_path.exists():
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(cred_path)
-                print(f"Using Google Vision credentials from: {cred_path}")
-            else:
-                print(f"Warning: Google Vision credentials not found at: {cred_path}")
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(vision_key_path.absolute())
+            print(f"Google Vision credentials saved to: {vision_key_path.absolute()}")
+            
+        except json.JSONDecodeError as e:
+            print(f"Error parsing Google Vision credentials: {e}")
+        except Exception as e:
+            print(f"Error setting up Google Vision credentials: {e}")
 
     # Set default Django settings module
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sample_app_project.settings')

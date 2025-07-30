@@ -18,12 +18,25 @@ Including another URLconf
 URL configuration for sample_app_project project.
 """
 
-# backend/sample_app_project/urls.py
+"""
+URL configuration for sample_app_project project.
+"""
+
 from django.urls import path
-from .views import upload_image, get_captured_data # Add the test view
+from django.http import JsonResponse
+from .views import upload_image, get_captured_data, health_check
+
+def root_handler(request):
+    """Root URL handler for health checks"""
+    return JsonResponse({
+        'status': 'active',
+        'service': 'Telehealth OCR Backend',
+        'version': '1.0.0'
+    })
 
 urlpatterns = [
+    path('', root_handler, name='root'),  # Handle root path
+    path('health/', health_check, name='health-check'),
     path('api/upload/', upload_image, name='upload-image'),
     path('api/get-data/', get_captured_data, name='get-data'),
 ]
-
