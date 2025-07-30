@@ -42,7 +42,7 @@ const CameraCapture = () => {
       formData.append("roomId", roomId);
 
       // Use environment variable for base URL
-      const baseUrl = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000"; //backend URL
+      const baseUrl = process.env.REACT_APP_API_URL || "https://ocr-backend-application.onrender.com"; //backend URL
       const response = await fetch(`${baseUrl}/api/upload/`, {
         method: "POST",
         body: formData,

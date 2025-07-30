@@ -247,15 +247,24 @@ def get_captured_data(request):
         # Get data from Firebase
         temperature_ref = db.reference(f'telehealth_data/{room_id}/temperature')
         weight_ref = db.reference(f'telehealth_data/{room_id}/weight')
+        glucose_ref = db.reference(f'telehealth_data/{room_id}/glucose')
+        blood_pressure = db.reference(f'telehealth_data/{room_id}/blood_pressure')
+        endoscope_ref = db.reference(f'telehealth_data/{room_id}/endoscope')
         
         temperature_data = temperature_ref.get()
         weight_data = weight_ref.get()
+        glucose_data = glucose_ref.get()
+        blood_pressure_data = blood_pressure.get()
+        endoscope_data = endoscope_ref.get()
         
         return JsonResponse({
             'status': 'success',
             'data': {
                 'temperature': temperature_data,
-                'weight': weight_data
+                'weight': weight_data,
+                'glucose': glucose_data,
+                'blood_pressure': blood_pressure_data,
+                'endoscope': endoscope_data
             }
         })
     except Exception as e:
