@@ -324,9 +324,18 @@ async function createPeerConnection() {
     iceCandidatePoolSize: 10
   });
 
-  // Add tracks to peer connection
+  // Add tracks to peer connection in consistent order (audio first, then video)
   if (localStream) {
-    localStream.getTracks().forEach((track) => {
+    const audioTracks = localStream.getAudioTracks();
+    const videoTracks = localStream.getVideoTracks();
+    
+    // Add audio tracks first
+    audioTracks.forEach((track) => {
+      pc.addTrack(track, localStream);
+    });
+    
+    // Then add video tracks
+    videoTracks.forEach((track) => {
       pc.addTrack(track, localStream);
     });
   }
@@ -335,6 +344,11 @@ async function createPeerConnection() {
 }
 
 function setupPeerConnectionListeners() {
+  setupPeerConnectionListenersWithoutNegotiation();
+  addNegotiationHandler();
+}
+
+function setupPeerConnectionListenersWithoutNegotiation() {
   // Enhanced ontrack handler
   peerConnection.ontrack = (event) => {
     console.log('Track received:', event.track.kind);
@@ -420,6 +434,9 @@ function setupPeerConnectionListeners() {
       processBufferedCandidates();
     }
   };
+}
+
+function addNegotiationHandler() {
 
   // FIXED: Prevent negotiation loops and handle InvalidAccessError
   peerConnection.onnegotiationneeded = async () => {
@@ -440,9 +457,11 @@ function setupPeerConnectionListeners() {
       isNegotiating = true;
       console.log('Creating new offer...');
       
+      // Use more specific offer options to prevent m-line issues
       const offer = await peerConnection.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: true
+        offerToReceiveVideo: true,
+        voiceActivityDetection: false
       });
 
       // Check if we're still in stable state before setting local description
@@ -471,7 +490,10 @@ function setupPeerConnectionListeners() {
       if (error.toString().includes('InvalidAccessError') || 
           error.toString().includes("order of m-lines")) {
         console.warn('Media line mismatch detected - attempting recovery...');
-        await handleMediaLineMismatch();
+        // Delay recovery to avoid immediate re-triggering
+        setTimeout(() => {
+          handleMediaLineMismatch();
+        }, 1000);
       }
     }
   };
@@ -482,9 +504,19 @@ async function handleMediaLineMismatch() {
   try {
     console.log('Attempting to recover from media line mismatch...');
     
-    // Close existing connection
+    // Close existing connection completely
     if (peerConnection) {
+      // Remove all existing senders first
+      const senders = peerConnection.getSenders();
+      for (const sender of senders) {
+        try {
+          peerConnection.removeTrack(sender);
+        } catch (e) {
+          console.warn('Failed to remove sender:', e);
+        }
+      }
       peerConnection.close();
+      peerConnection = null;
     }
     
     // Reset states
@@ -492,19 +524,12 @@ async function handleMediaLineMismatch() {
     remoteDescriptionSet = false;
     iceCandidateBuffer = [];
     
-    // Create new peer connection
+    // Wait a bit for cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Create completely new peer connection
     peerConnection = await createPeerConnection();
     setupPeerConnectionListeners();
-    
-    // Re-add local stream tracks in consistent order
-    if (localStream) {
-      const audioTracks = localStream.getAudioTracks();
-      const videoTracks = localStream.getVideoTracks();
-      
-      // Add audio first, then video to maintain consistent order
-      audioTracks.forEach(track => peerConnection.addTrack(track, localStream));
-      videoTracks.forEach(track => peerConnection.addTrack(track, localStream));
-    }
     
     // Restart the call flow
     if (isCaller && roomRef) {
@@ -620,9 +645,16 @@ async function startVideoCall() {
     await ensureFreshCredentials();
     await setupMediaStream();
 
+    // Ensure we have media before creating peer connection
+    if (!localStream || localStream.getTracks().length === 0) {
+      throw new Error("No media stream available");
+    }
+
     peerConnection = await createPeerConnection();
     if (!peerConnection) throw new Error("Failed to create peer connection");
-    setupPeerConnectionListeners();
+    
+    // Setup listeners but delay negotiation handler
+    setupPeerConnectionListenersWithoutNegotiation();
 
     updateConnectionStatus("Creating offer...");
     const offer = await peerConnection.createOffer({
@@ -639,6 +671,9 @@ async function startVideoCall() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     roomId = roomRef.id;
+
+    // Now add the negotiation handler after initial setup
+    addNegotiationHandler();
 
     if (currentRoomDisplay) {
       currentRoomDisplay.innerText = `${roomId}`;
@@ -792,26 +827,63 @@ async function joinRoom(roomIdInput) {
 async function setupMediaStream() {
   if (!localStream) {
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({
+      // Use more conservative constraints to avoid timeout
+      const constraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+          frameRate: { ideal: 15, max: 30 }
         },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         }
-      });
+      };
+
+      // Add timeout to media access
+      const mediaPromise = navigator.mediaDevices.getUserMedia(constraints);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Media access timeout')), 10000)
+      );
+
+      localStream = await Promise.race([mediaPromise, timeoutPromise]);
       
       if (localVideo) {
         localVideo.srcObject = localStream;
-        localVideo.play().catch(e => console.warn('Local video play failed:', e));
+        try {
+          await localVideo.play();
+        } catch (e) {
+          console.warn('Local video play failed:', e);
+          // Try to play with muted attribute
+          localVideo.muted = true;
+          await localVideo.play().catch(e => console.warn('Muted play also failed:', e));
+        }
       }
     } catch (error) {
       console.error('Failed to get media stream:', error);
-      throw error;
+      
+      // Try fallback with audio only
+      if (error.message !== 'Media access timeout') {
+        try {
+          console.log('Attempting audio-only fallback...');
+          localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true, 
+            video: false 
+          });
+          
+          if (localVideo) {
+            localVideo.srcObject = localStream;
+          }
+          
+          updateConnectionStatus("Audio-only mode (camera unavailable)");
+        } catch (fallbackError) {
+          console.error('Audio fallback also failed:', fallbackError);
+          throw new Error('Unable to access any media devices');
+        }
+      } else {
+        throw error;
+      }
     }
   }
 }
