@@ -9,7 +9,9 @@ window.addEventListener('message', (event) => {
   if (!allowedOrigins.includes(event.origin)) return;
   
   if (event.data.type === "JOIN_ROOM" && event.data.roomId) {
-    joinRoom(event.data.roomId).catch(error => {});
+    joinRoom(event.data.roomId).catch(error => {
+      console.error('Failed to join room from message:', error);
+    });
   }
 });
 
@@ -43,7 +45,7 @@ fetch("/firebase-config")
       db.collection("testConnection")
         .doc("test")
         .get()
-        .catch((e) => {});
+        .catch((e) => console.warn('Test connection failed:', e));
 
       initializeVideoCall();
     } catch (initError) {
@@ -51,6 +53,7 @@ fetch("/firebase-config")
     }
   })
   .catch((error) => {
+    console.error('Firebase initialization error:', error);
     alert(`Firebase init failed: ${error.message}\nCheck console for details.`);
   });
 
@@ -72,6 +75,7 @@ const MAX_RESTART_ATTEMPTS = 3;
 const MAX_CONNECTION_TIME = 15000;
 let lastCredentialsFetchTime = 0;
 let iceServers = null;
+let isNegotiating = false; // Add this flag to prevent negotiation loops
 
 // DOM elements
 const localVideo = document.getElementById("localVideo");
@@ -118,13 +122,11 @@ async function fetchTurnCredentials() {
     const response = await fetch("/api/turn-credentials");
 
     if (!response.ok) {
-      const errorText = await response.text();
+      console.warn(`Failed to fetch TURN credentials: ${response.statusText}`);
       throw new Error(`Failed to fetch TURN credentials: ${response.statusText}`);
     }
 
     const turnServers = await response.json();
-
-    // Normalize fetched turn servers array
     const fetchedIceServers = turnServers.iceServers || turnServers || [];
 
     iceServers = {
@@ -135,11 +137,12 @@ async function fetchTurnCredentials() {
         { urls: "stun:stun3.l.google.com:19302" },
         { urls: "stun:stun4.l.google.com:19302" },
         ...fetchedIceServers,
-        ...staticTurnServers, // append your static TURN servers at the end
+        ...staticTurnServers,
       ],
     };
 
     lastCredentialsFetchTime = Date.now();
+    console.log('TURN credentials fetched successfully');
     return true;
   } catch (error) {
     console.warn("Failed to fetch dynamic TURN credentials, using static servers:", error);
@@ -150,7 +153,7 @@ async function fetchTurnCredentials() {
         { urls: "stun:stun2.l.google.com:19302" },
         { urls: "stun:stun3.l.google.com:19302" },
         { urls: "stun:stun4.l.google.com:19302" },
-        ...staticTurnServers, // fallback includes your static TURN servers too
+        ...staticTurnServers,
       ],
     };
     return false;
@@ -187,13 +190,19 @@ async function testTurnServer() {
 }
 
 function updateConnectionStatus(message, isConnecting = true) {
-  statusText.textContent = message;
-  connectionStatus.className = isConnecting
-    ? "connection-status connecting"
-    : "connection-status ready";
+  if (statusText) {
+    statusText.textContent = message;
+  }
+  if (connectionStatus) {
+    connectionStatus.className = isConnecting
+      ? "connection-status connecting"
+      : "connection-status ready";
+  }
 }
 
 function updateConnectionQuality(quality) {
+  if (!connectionQuality) return;
+  
   connectionQuality.className = `connection-quality ${quality}`;
 
   let qualityText = "Unknown";
@@ -224,14 +233,28 @@ function setupUI() {
     openMediaBtn.addEventListener("click", openUserMedia);
   }
 
-  startCallBtn.addEventListener("click", startVideoCall);
-  joinCallBtn.addEventListener("click", async () => {
-    const inputId = prompt("Enter Room ID:");
-    if (inputId) await joinRoom(inputId);
-  });
-  hangUpBtn.addEventListener("click", hangUp);
-  toggleVideoBtn.addEventListener("click", toggleCamera);
-  muteAudioBtn.addEventListener("click", toggleMic);
+  if (startCallBtn) {
+    startCallBtn.addEventListener("click", startVideoCall);
+  }
+  
+  if (joinCallBtn) {
+    joinCallBtn.addEventListener("click", async () => {
+      const inputId = prompt("Enter Room ID:");
+      if (inputId) await joinRoom(inputId);
+    });
+  }
+  
+  if (hangUpBtn) {
+    hangUpBtn.addEventListener("click", hangUp);
+  }
+  
+  if (toggleVideoBtn) {
+    toggleVideoBtn.addEventListener("click", toggleCamera);
+  }
+  
+  if (muteAudioBtn) {
+    muteAudioBtn.addEventListener("click", toggleMic);
+  }
 }
 
 function toggleMic() {
@@ -242,7 +265,9 @@ function toggleMic() {
       const icon = audioTracks[0].enabled
         ? '<i class="fas fa-microphone"></i>'
         : '<i class="fas fa-microphone-slash"></i>';
-      muteAudioBtn.innerHTML = icon;
+      if (muteAudioBtn) {
+        muteAudioBtn.innerHTML = icon;
+      }
     }
   }
 }
@@ -250,15 +275,27 @@ function toggleMic() {
 async function openUserMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
     });
-    localVideo.srcObject = localStream;
+    
+    if (localVideo) {
+      localVideo.srcObject = localStream;
+      localVideo.play().catch(e => console.warn('Local video play failed:', e));
+    }
 
-    startCallBtn.disabled = false;
-    joinCallBtn.disabled = false;
-    muteAudioBtn.disabled = false;
-    toggleVideoBtn.disabled = false;
+    if (startCallBtn) startCallBtn.disabled = false;
+    if (joinCallBtn) joinCallBtn.disabled = false;
+    if (muteAudioBtn) muteAudioBtn.disabled = false;
+    if (toggleVideoBtn) toggleVideoBtn.disabled = false;
 
     updateConnectionStatus("Ready to connect", false);
 
@@ -275,22 +312,24 @@ async function openUserMedia() {
 }
 
 async function createPeerConnection() {
-if (!iceServers || !iceServers.iceServers || iceServers.iceServers.length === 0) {
-  await ensureFreshCredentials();
-}
+  if (!iceServers || !iceServers.iceServers || iceServers.iceServers.length === 0) {
+    await ensureFreshCredentials();
+  }
 
   const pc = new RTCPeerConnection({
     iceServers: iceServers.iceServers || iceServers,
-    iceTransportPolicy: "all", // Changed from "relay" to "all" for better connectivity
+    iceTransportPolicy: "all",
     bundlePolicy: "max-bundle",
     rtcpMuxPolicy: "require",
     iceCandidatePoolSize: 10
   });
 
   // Add tracks to peer connection
-  localStream.getTracks().forEach((track) => {
-    pc.addTrack(track, localStream);
-  });
+  if (localStream) {
+    localStream.getTracks().forEach((track) => {
+      pc.addTrack(track, localStream);
+    });
+  }
 
   return pc;
 }
@@ -302,16 +341,20 @@ function setupPeerConnectionListeners() {
     
     if (event.streams && event.streams[0]) {
       console.log('Setting remote stream directly');
-      remoteVideo.srcObject = event.streams[0];
+      if (remoteVideo) {
+        remoteVideo.srcObject = event.streams[0];
+        remoteVideo.play().catch(e => console.warn('Remote video play failed:', e));
+      }
       remoteStream = event.streams[0];
     } else {
       console.log('Adding track to remote stream');
       remoteStream.addTrack(event.track);
-      remoteVideo.srcObject = remoteStream;
+      if (remoteVideo) {
+        remoteVideo.srcObject = remoteStream;
+        remoteVideo.play().catch(e => console.warn('Remote video play failed:', e));
+      }
     }
     
-    // Ensure video plays
-    remoteVideo.play().catch(e => console.log('Play failed:', e));
     updateConnectionQuality("good");
   };
 
@@ -338,7 +381,6 @@ function setupPeerConnectionListeners() {
         statusMessage = "Connected";
         updateConnectionQuality("good");
         clearConnectionTimer();
-        // Log connection stats
         logConnectionStats();
         break;
       case "checking":
@@ -361,7 +403,6 @@ function setupPeerConnectionListeners() {
         break;
     }
     updateConnectionStatus(statusMessage, state !== "connected" && state !== "completed");
-    console.warn(`ICE State: ${peerConnection.iceConnectionState}`);
   };
 
   peerConnection.onconnectionstatechange = () => {
@@ -373,78 +414,128 @@ function setupPeerConnectionListeners() {
 
   peerConnection.onsignalingstatechange = () => {
     console.log('Signaling state:', peerConnection.signalingState);
+    
     if (peerConnection.signalingState === "stable") {
+      isNegotiating = false; // Reset negotiation flag
       processBufferedCandidates();
     }
-    console.warn(`Signaling State: ${peerConnection.signalingState}`);
   };
 
-  // Add this right after your peerConnection creation in setupPeerConnectionListeners()
-  peerConnection.onsignalingstatechange = () => {
-  console.log(`Signaling state changed to: ${peerConnection.signalingState}`);
-  if (peerConnection.signalingState === "stable") {
-    processBufferedCandidates();
-  }
-};
-
+  // FIXED: Prevent negotiation loops and handle InvalidAccessError
   peerConnection.onnegotiationneeded = async () => {
-  console.log('Negotiation needed event triggered');
-  
-  if (!isCaller || peerConnection.signalingState !== "stable") {
-    console.log('Skipping negotiation - not caller or signaling not stable');
-    return;
-  }
+    console.log('Negotiation needed');
+    
+    // Prevent negotiation loops
+    if (isNegotiating) {
+      console.log('Already negotiating, skipping...');
+      return;
+    }
+    
+    if (!isCaller || peerConnection.signalingState !== "stable") {
+      console.log('Skipping negotiation - not caller or signaling not stable');
+      return;
+    }
 
-  try {
-    console.log('Creating new offer...');
-    const offer = await peerConnection.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
-      iceRestart: true
-    });
-
-    console.log('Setting local description...');
-    await peerConnection.setLocalDescription(offer);
-
-    if (roomRef) {
-      console.log('Updating room with new offer...');
-      await roomRef.update({
-        offer: {
-          type: offer.type,
-          sdp: offer.sdp,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }
+    try {
+      isNegotiating = true;
+      console.log('Creating new offer...');
+      
+      const offer = await peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
       });
+
+      // Check if we're still in stable state before setting local description
+      if (peerConnection.signalingState !== "stable") {
+        console.log('Signaling state changed during offer creation, aborting');
+        isNegotiating = false;
+        return;
+      }
+
+      await peerConnection.setLocalDescription(offer);
+
+      if (roomRef) {
+        console.log('Updating room with new offer...');
+        await roomRef.update({
+          offer: {
+            type: offer.type,
+            sdp: offer.sdp,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Negotiation error:', error);
+      isNegotiating = false;
+      
+      if (error.toString().includes('InvalidAccessError') || 
+          error.toString().includes("order of m-lines")) {
+        console.warn('Media line mismatch detected - attempting recovery...');
+        await handleMediaLineMismatch();
+      }
     }
-  } catch (error) {
-    console.error('Negotiation failed:', error);
-    if (error.toString().includes('InvalidAccessError')) {
-      console.warn('Media line mismatch - attempting recovery...');
-      await handleMediaLineMismatch();
-    }
-  }
-};
+  };
 }
 
-// Add this new helper function somewhere in your code
+// FIXED: Better error handling for media line mismatch
 async function handleMediaLineMismatch() {
   try {
     console.log('Attempting to recover from media line mismatch...');
-    if (peerConnection) peerConnection.close();
     
+    // Close existing connection
+    if (peerConnection) {
+      peerConnection.close();
+    }
+    
+    // Reset states
+    isNegotiating = false;
+    remoteDescriptionSet = false;
+    iceCandidateBuffer = [];
+    
+    // Create new peer connection
     peerConnection = await createPeerConnection();
     setupPeerConnectionListeners();
     
+    // Re-add local stream tracks in consistent order
     if (localStream) {
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
+      const audioTracks = localStream.getAudioTracks();
+      const videoTracks = localStream.getVideoTracks();
+      
+      // Add audio first, then video to maintain consistent order
+      audioTracks.forEach(track => peerConnection.addTrack(track, localStream));
+      videoTracks.forEach(track => peerConnection.addTrack(track, localStream));
     }
     
-    if (isCaller) await startVideoCall();
-    else if (roomId) await joinRoom(roomId);
+    // Restart the call flow
+    if (isCaller && roomRef) {
+      await restartCallerFlow();
+    }
   } catch (error) {
     console.error('Recovery failed:', error);
+    updateConnectionStatus("Recovery failed. Please restart the call.");
+  }
+}
+
+async function restartCallerFlow() {
+  try {
+    const offer = await peerConnection.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    });
+    
+    await peerConnection.setLocalDescription(offer);
+    
+    await roomRef.update({
+      offer: {
+        type: offer.type,
+        sdp: offer.sdp,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      }
+    });
+    
+    updateConnectionStatus("Restarted - waiting for answer...");
+  } catch (error) {
+    console.error('Failed to restart caller flow:', error);
   }
 }
 
@@ -480,14 +571,13 @@ async function attemptIceRestart() {
     await ensureFreshCredentials();
 
     // Use restartIce if available
-if ('restartIce' in peerConnection) {
-  try {
-    peerConnection.restartIce();
-  } catch (err) {
-    console.warn("restartIce failed:", err);
-  }
-}
-
+    if ('restartIce' in peerConnection) {
+      try {
+        peerConnection.restartIce();
+      } catch (err) {
+        console.warn("restartIce failed:", err);
+      }
+    }
 
     const offer = await peerConnection.createOffer({ iceRestart: true });
     await peerConnection.setLocalDescription(offer);
@@ -525,6 +615,7 @@ async function startVideoCall() {
   try {
     isCaller = true;
     restartAttempts = 0;
+    isNegotiating = false;
 
     await ensureFreshCredentials();
     await setupMediaStream();
@@ -549,8 +640,12 @@ async function startVideoCall() {
     });
     roomId = roomRef.id;
 
-    currentRoomDisplay.innerText = `${roomId}`;
-    hangUpBtn.disabled = false;
+    if (currentRoomDisplay) {
+      currentRoomDisplay.innerText = `${roomId}`;
+    }
+    if (hangUpBtn) {
+      hangUpBtn.disabled = false;
+    }
 
     const parentOrigin =
       window.location.ancestorOrigins?.[0] || "https://fir-rtc-521a2.web.app";
@@ -609,6 +704,7 @@ async function joinRoom(roomIdInput) {
     restartAttempts = 0;
     remoteDescriptionSet = false;
     iceCandidateBuffer = [];
+    isNegotiating = false;
     
     await ensureFreshCredentials();
 
@@ -620,7 +716,9 @@ async function joinRoom(roomIdInput) {
       return;
     }
 
-    currentRoomDisplay.innerText = `${roomIdInput}`;
+    if (currentRoomDisplay) {
+      currentRoomDisplay.innerText = `${roomIdInput}`;
+    }
     roomId = roomIdInput;
 
     callerCandidatesCollection = roomRef.collection("callerCandidates");
@@ -642,8 +740,6 @@ async function joinRoom(roomIdInput) {
 
     updateConnectionStatus("Setting remote description...");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    processBufferedCandidates();
-
 
     updateConnectionStatus("Creating answer...");
     const answer = await peerConnection.createAnswer({
@@ -678,7 +774,9 @@ async function joinRoom(roomIdInput) {
       });
     });
 
-    hangUpBtn.disabled = false;
+    if (hangUpBtn) {
+      hangUpBtn.disabled = false;
+    }
     updateConnectionStatus("Connecting...");
   } catch (error) {
     console.error('Join room error:', error);
@@ -693,21 +791,28 @@ async function joinRoom(roomIdInput) {
 
 async function setupMediaStream() {
   if (!localStream) {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      if (localVideo) {
+        localVideo.srcObject = localStream;
+        localVideo.play().catch(e => console.warn('Local video play failed:', e));
       }
-    });
-    localVideo.srcObject = localStream;
-    
-    // Ensure local video plays
-    localVideo.play().catch(e => console.log('Local play failed:', e));
+    } catch (error) {
+      console.error('Failed to get media stream:', error);
+      throw error;
+    }
   }
 }
 
@@ -751,7 +856,9 @@ function toggleCamera() {
     const icon = videoTracks[0].enabled
       ? '<i class="fas fa-video"></i>'
       : '<i class="fas fa-video-slash"></i>';
-    toggleVideoBtn.innerHTML = icon;
+    if (toggleVideoBtn) {
+      toggleVideoBtn.innerHTML = icon;
+    }
   }
 }
 
@@ -772,15 +879,15 @@ async function hangUp() {
     await roomRef.update({ callEnded: true }).catch(e => console.error('Failed to update room:', e));
   }
 
-  localVideo.srcObject = null;
-  remoteVideo.srcObject = null;
-  currentRoomDisplay.innerText = "";
+  if (localVideo) localVideo.srcObject = null;
+  if (remoteVideo) remoteVideo.srcObject = null;
+  if (currentRoomDisplay) currentRoomDisplay.innerText = "";
 
-  startCallBtn.disabled = true;
-  joinCallBtn.disabled = true;
-  hangUpBtn.disabled = true;
-  muteAudioBtn.disabled = true;
-  toggleVideoBtn.disabled = true;
+  if (startCallBtn) startCallBtn.disabled = true;
+  if (joinCallBtn) joinCallBtn.disabled = true;
+  if (hangUpBtn) hangUpBtn.disabled = true;
+  if (muteAudioBtn) muteAudioBtn.disabled = true;
+  if (toggleVideoBtn) toggleVideoBtn.disabled = true;
 
   if (openMediaBtn) {
     openMediaBtn.style.display = "block";
@@ -790,14 +897,17 @@ async function hangUp() {
   remoteDescriptionSet = false;
   iceCandidateBuffer = [];
   restartAttempts = 0;
+  isNegotiating = false;
 }
 
 // Add at the bottom of the file
 window.addEventListener('error', (event) => {
   if (event.message.includes('blocked') || event.message.includes('Tracking Prevention')) {
     console.warn('Resource blocked:', event);
-    document.getElementById('connectionStatus').textContent = 
-      'Browser blocked required resources. Please disable tracking protection.';
+    if (connectionStatus) {
+      connectionStatus.textContent = 
+        'Browser blocked required resources. Please disable tracking protection.';
+    }
   }
 }, true);
 
