@@ -379,27 +379,73 @@ function setupPeerConnectionListeners() {
     console.warn(`Signaling State: ${peerConnection.signalingState}`);
   };
 
-  // Add negotiation needed handler
+  // Add this right after your peerConnection creation in setupPeerConnectionListeners()
+  peerConnection.onsignalingstatechange = () => {
+  console.log(`Signaling state changed to: ${peerConnection.signalingState}`);
+  if (peerConnection.signalingState === "stable") {
+    processBufferedCandidates();
+  }
+};
+
   peerConnection.onnegotiationneeded = async () => {
-    console.log('Negotiation needed');
-    try {
-      if (isCaller && peerConnection.signalingState === "stable") {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        
-        if (roomRef) {
-          await roomRef.update({
-            offer: {
-              type: offer.type,
-              sdp: offer.sdp,
-            },
-          });
+  console.log('Negotiation needed event triggered');
+  
+  if (!isCaller || peerConnection.signalingState !== "stable") {
+    console.log('Skipping negotiation - not caller or signaling not stable');
+    return;
+  }
+
+  try {
+    console.log('Creating new offer...');
+    const offer = await peerConnection.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true,
+      iceRestart: true
+    });
+
+    console.log('Setting local description...');
+    await peerConnection.setLocalDescription(offer);
+
+    if (roomRef) {
+      console.log('Updating room with new offer...');
+      await roomRef.update({
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
         }
-      }
-    } catch (error) {
-      console.error('Negotiation error:', error);
+      });
     }
-  };
+  } catch (error) {
+    console.error('Negotiation failed:', error);
+    if (error.toString().includes('InvalidAccessError')) {
+      console.warn('Media line mismatch - attempting recovery...');
+      await handleMediaLineMismatch();
+    }
+  }
+};
+}
+
+// Add this new helper function somewhere in your code
+async function handleMediaLineMismatch() {
+  try {
+    console.log('Attempting to recover from media line mismatch...');
+    if (peerConnection) peerConnection.close();
+    
+    peerConnection = await createPeerConnection();
+    setupPeerConnectionListeners();
+    
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
+    
+    if (isCaller) await startVideoCall();
+    else if (roomId) await joinRoom(roomId);
+  } catch (error) {
+    console.error('Recovery failed:', error);
+  }
 }
 
 async function logConnectionStats() {
