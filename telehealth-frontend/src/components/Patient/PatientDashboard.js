@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import Webcam from "react-webcam";
 import { getDatabase, ref, onValue, off } from "firebase/database";
+import { checkBrowserCompatibility, displayCompatibilityInfo } from '../Utils/browserCompatibility';
 import MessageNotification from "../Message/MessageNotification";
 import { Link } from "react-router-dom"; // Import Link for debug info navigation
 import "./PatientDashboard.css";
@@ -233,7 +234,7 @@ const PatientDashboard = () => {
                   type: "JOIN_ROOM",
                   roomId: data.assignedRoom,
                 },
-                "https://telehealth-application.onrender.com/"
+                "https://telehealth-application.onrender.com"
               ); // Match iframe origin
             }
           }
@@ -252,7 +253,24 @@ const PatientDashboard = () => {
       Notification.requestPermission();
     }
   }, []);
+    useEffect(() => {
+    // Check browser compatibility on component mount
+    const compatibility = checkBrowserCompatibility();
+    
+    if (!compatibility.compatible) {
+      setCurrentMessage({
+        content: compatibility.message,
+        isError: true,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Optionally show a persistent warning
+      displayCompatibilityInfo('patient-browser-warning');
+    }
 
+    // For React, you might want to create a dedicated warning component
+    // instead of using the DOM-based displayCompatibilityInfo
+  }, []);
   useEffect(() => {
     if (
       showCamera &&
@@ -353,6 +371,8 @@ const PatientDashboard = () => {
 
   return (
     <div className="app-container">
+      {/* Add this div somewhere prominent in your layout */}
+      <div id="patient-browser-warning" className="compatibility-warning"></div>
       <header className="app-header">
         <button
           className="back-button"

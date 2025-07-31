@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { getDatabase, ref, onValue, off } from "firebase/database"; // Realtime Database
 import { getAuth } from "firebase/auth";
+import { checkBrowserCompatibility } from '../Utils/browserCompatibility';
 import {
   handlePatientClick,
   sendMessageToPatient,
@@ -18,6 +19,7 @@ const DoctorDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [doctorName, setDoctorName] = useState("");
   const [patientQueue, setPatientQueue] = useState([]);
+  const [browserWarning, setBrowserWarning] = useState(null);
   const [availableCities] = useState([
     { code: "CPT", name: "Cape Town Hub" },
     { code: "JHB", name: "Johannesburg Base" },
@@ -50,7 +52,7 @@ const DoctorDashboard = () => {
     const handleMessage = (event) => {
       const allowedOrigins = [
         "http://localhost:8001",
-        "http://127.0.0.1:8001",
+        "https://fir-rtc-521a2.web.app",
         "https://telehealth-application.onrender.com",
       ];
 
@@ -67,6 +69,17 @@ const DoctorDashboard = () => {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
+  }, []);
+  useEffect(() => {
+    const compatibility = checkBrowserCompatibility();
+    
+    if (compatibility.level === 'problematic') {
+      setBrowserWarning({
+        title: `Compatibility Issue with ${compatibility.browser.name}`,
+        message: compatibility.message,
+        actions: compatibility.actions
+      });
+    }
   }, []);
 
   // Monitor queue when city changes using queueService
@@ -178,6 +191,18 @@ const DoctorDashboard = () => {
 
   return (
     <div className="app-container">
+      {/* React-style warning banner */}
+      {browserWarning && (
+        <div className="alert alert-warning">
+          <h4>{browserWarning.title}</h4>
+          <p>{browserWarning.message}</p>
+          <ul>
+            {browserWarning.actions.map((action, index) => (
+              <li key={index}>{action}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <header className="app-header">
         <h1>
           <button
@@ -308,32 +333,32 @@ const DoctorDashboard = () => {
           <h3>Patient Vitals</h3>
 
           <div className="search-section">
-  <div className="search-container">
-    <input
-      type="text"
-      className="search-input"
-      placeholder="Search by Room ID..."
-      value={searchQuery} // Only show searchQuery
-      onChange={(e) => setSearchQuery(e.target.value)}
-    />
-    <button
-      className="search-button"
-      onClick={fetchCapturedData}
-      disabled={!searchQuery} // Only disable if searchQuery is empty
-    >
-      🔍
-    </button>
-    {currentRoomId && !searchQuery && (
-      <button 
-        className="fill-room-button"
-        onClick={() => setSearchQuery(currentRoomId)}
-        title="Fill current room ID"
-      >
-        Use Current Room
-      </button>
-    )}
-  </div>
-</div>
+            <div className="search-container">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search by Room ID..."
+                value={searchQuery} // Only show searchQuery
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button
+                className="search-button"
+                onClick={fetchCapturedData}
+                disabled={!searchQuery} // Only disable if searchQuery is empty
+              >
+                🔍
+              </button>
+              {currentRoomId && !searchQuery && (
+                <button
+                  className="fill-room-button"
+                  onClick={() => setSearchQuery(currentRoomId)}
+                  title="Fill current room ID"
+                >
+                  Use Current Room
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="results-content">
             {loading ? (

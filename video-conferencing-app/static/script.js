@@ -1,3 +1,17 @@
+// Update the message event listener at the top of the file
+window.addEventListener('message', (event) => {
+  const allowedOrigins = [
+    "https://fir-rtc-521a2.web.app",
+    "https://telehealth-application.onrender.com",
+    "http://localhost:3000" // For local development
+  ];
+  
+  if (!allowedOrigins.includes(event.origin)) return;
+  
+  if (event.data.type === "JOIN_ROOM" && event.data.roomId) {
+    joinRoom(event.data.roomId).catch(error => {});
+  }
+});
 // Firebase configuration
 fetch("/firebase-config")
   .then((res) => {
@@ -57,14 +71,6 @@ const MAX_RESTART_ATTEMPTS = 2;
 const MAX_CONNECTION_TIME = 10000;
 let lastCredentialsFetchTime = 0;
 let iceServers = null;
-
-window.addEventListener('message', (event) => {
-  if (event.origin !== "https://fir-rtc-521a2.web.app") return;
-
-  if (event.data.type === "JOIN_ROOM" && event.data.roomId) {
-    joinRoom(event.data.roomId).catch(error => {});
-  }
-});
 
 // DOM elements
 const localVideo = document.getElementById("localVideo");
@@ -592,6 +598,18 @@ async function hangUp() {
   }
 
   updateConnectionStatus("Call ended", false);
+}
+// Add at the bottom of the file
+window.addEventListener('error', (event) => {
+  if (event.message.includes('blocked') || event.message.includes('Tracking Prevention')) {
+    console.warn('Resource blocked:', event);
+    document.getElementById('connectionStatus').textContent = 
+      'Browser blocked required resources. Please disable tracking protection.';
+  }
+}, true);
+
+if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+  document.cookie = "crossSiteCookie=fix; SameSite=None; Secure";
 }
 
 document.addEventListener("DOMContentLoaded", initializeVideoCall);

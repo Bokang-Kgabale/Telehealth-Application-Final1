@@ -736,3 +736,26 @@ body {
     flex-direction: column;
   }
 }
+/* For PatientDashboard */
+.compatibility-warning {
+  padding: 15px;
+  margin: 10px 0;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+}
+
+/* For DoctorDashboard */
+.alert-warning {
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+  color: #856404;
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.alert-warning h4 {
+  margin-top: 0;
+  color: inherit;
+}
