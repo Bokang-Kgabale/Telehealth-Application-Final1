@@ -275,9 +275,9 @@ async function openUserMedia() {
 }
 
 async function createPeerConnection() {
-  if (!iceServers) {
-    await ensureFreshCredentials();
-  }
+if (!iceServers || !iceServers.iceServers || iceServers.iceServers.length === 0) {
+  await ensureFreshCredentials();
+}
 
   const pc = new RTCPeerConnection({
     iceServers: iceServers.iceServers || iceServers,
@@ -361,6 +361,7 @@ function setupPeerConnectionListeners() {
         break;
     }
     updateConnectionStatus(statusMessage, state !== "connected" && state !== "completed");
+    console.warn(`ICE State: ${peerConnection.iceConnectionState}`);
   };
 
   peerConnection.onconnectionstatechange = () => {
@@ -375,6 +376,7 @@ function setupPeerConnectionListeners() {
     if (peerConnection.signalingState === "stable") {
       processBufferedCandidates();
     }
+    console.warn(`Signaling State: ${peerConnection.signalingState}`);
   };
 
   // Add negotiation needed handler
@@ -432,9 +434,14 @@ async function attemptIceRestart() {
     await ensureFreshCredentials();
 
     // Use restartIce if available
-    if (peerConnection.restartIce) {
-      peerConnection.restartIce();
-    }
+if ('restartIce' in peerConnection) {
+  try {
+    peerConnection.restartIce();
+  } catch (err) {
+    console.warn("restartIce failed:", err);
+  }
+}
+
 
     const offer = await peerConnection.createOffer({ iceRestart: true });
     await peerConnection.setLocalDescription(offer);
@@ -525,8 +532,8 @@ async function startVideoCall() {
           await peerConnection.setRemoteDescription(
             new RTCSessionDescription(data.answer)
           );
-          remoteDescriptionSet = true;
           processBufferedCandidates();
+          remoteDescriptionSet = true;
         } catch (error) {
           console.error('Failed to set remote description:', error);
         }
@@ -589,6 +596,8 @@ async function joinRoom(roomIdInput) {
 
     updateConnectionStatus("Setting remote description...");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    processBufferedCandidates();
+
 
     updateConnectionStatus("Creating answer...");
     const answer = await peerConnection.createAnswer({
@@ -714,7 +723,7 @@ async function hangUp() {
   }
 
   if (roomRef && isCaller) {
-    await roomRef.delete().catch(e => console.error('Failed to delete room:', e));
+    await roomRef.update({ callEnded: true }).catch(e => console.error('Failed to update room:', e));
   }
 
   localVideo.srcObject = null;
