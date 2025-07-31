@@ -15,7 +15,7 @@ window.addEventListener('message', (event) => {
   }
 });
 
-// Firebase configuration
+// Firebase configuration with better error handling
 fetch("/firebase-config")
   .then((res) => {
     if (!res.ok) {
@@ -35,19 +35,44 @@ fetch("/firebase-config")
     try {
       const firebaseApp = firebase.initializeApp(config);
       db = firebase.firestore();
+      
+      // Better Firestore settings for connectivity issues
       if (window.location.hostname === "localhost") {
         db.settings({
           experimentalForceLongPolling: true,
           merge: true,
         });
+      } else {
+        // For production, use more conservative settings
+        db.settings({
+          experimentalForceLongPolling: false,
+          merge: true,
+          ignoreUndefinedProperties: true
+        });
       }
 
+      // Test connection with better error handling
       db.collection("testConnection")
         .doc("test")
         .get()
-        .catch((e) => console.warn('Test connection failed:', e));
+        .then(() => {
+          console.log('Firestore connection test successful');
+          initializeVideoCall();
+        })
+        .catch((e) => {
+          console.error('Firestore connection test failed:', e);
+          // Try to initialize anyway, but with offline persistence
+          db.enablePersistence({ synchronizeTabs: true })
+            .then(() => {
+              console.log('Firestore offline persistence enabled');
+              initializeVideoCall();
+            })
+            .catch(() => {
+              console.warn('Firestore persistence failed, continuing without');
+              initializeVideoCall();
+            });
+        });
 
-      initializeVideoCall();
     } catch (initError) {
       throw initError;
     }
@@ -316,12 +341,15 @@ async function createPeerConnection() {
     await ensureFreshCredentials();
   }
 
+  // More aggressive ICE configuration for problematic networks
   const pc = new RTCPeerConnection({
     iceServers: iceServers.iceServers || iceServers,
-    iceTransportPolicy: "all",
+    iceTransportPolicy: "all", // Allow both STUN and TURN
     bundlePolicy: "max-bundle",
     rtcpMuxPolicy: "require",
-    iceCandidatePoolSize: 10
+    iceCandidatePoolSize: 10,
+    // Add additional configuration for better connectivity
+    iceGatheringPolicy: "gather-continually"
   });
 
   // Add tracks to peer connection in consistent order (audio first, then video)
@@ -415,11 +443,30 @@ function setupPeerConnectionListenersWithoutNegotiation() {
     if (event.candidate && roomId) {
       console.log('Local ICE candidate:', event.candidate.candidate);
       const collectionName = isCaller ? "callerCandidates" : "calleeCandidates";
+      
+      // Add better error handling for Firestore operations
       db.collection("rooms")
         .doc(roomId)
         .collection(collectionName)
         .add(event.candidate.toJSON())
-        .catch((e) => console.error('Failed to add ICE candidate:', e));
+        .catch((e) => {
+          console.error('Failed to add ICE candidate to Firestore:', e);
+          
+          // Store candidates locally if Firestore fails
+          if (!window.localCandidateBuffer) {
+            window.localCandidateBuffer = [];
+          }
+          window.localCandidateBuffer.push({
+            candidate: event.candidate.toJSON(),
+            collection: collectionName,
+            timestamp: Date.now()
+          });
+          
+          // Try to flush buffered candidates periodically
+          setTimeout(() => {
+            flushLocalCandidateBuffer();
+          }, 5000);
+        });
     }
   };
 
@@ -434,6 +481,7 @@ function setupPeerConnectionListenersWithoutNegotiation() {
         statusMessage = "Connected";
         updateConnectionQuality("good");
         clearConnectionTimer();
+        restartAttempts = 0; // Reset restart attempts on successful connection
         
         // Give some time for media to flow, then check
         setTimeout(() => {
@@ -453,18 +501,18 @@ function setupPeerConnectionListenersWithoutNegotiation() {
         statusMessage = "Network issues detected...";
         updateConnectionQuality("poor");
         
-        // Don't restart immediately on disconnect, wait to see if it recovers
+        // More aggressive restart for persistent disconnections
         setTimeout(() => {
           if (peerConnection?.iceConnectionState === "disconnected") {
-            console.log('Still disconnected after 5 seconds, attempting restart');
-            attemptIceRestart();
+            console.log('Still disconnected after 3 seconds, attempting restart');
+            attemptConnectionRecovery();
           }
-        }, 5000); // Increased from 3 to 5 seconds
+        }, 3000); // Back to 3 seconds but with better recovery
         break;
       case "failed":
         statusMessage = "Connection failed";
         updateConnectionQuality("poor");
-        attemptIceRestart();
+        attemptConnectionRecovery();
         break;
       case "new":
       case "gathering":
@@ -745,6 +793,209 @@ function checkRemoteStreamHealth() {
           attemptRemoteVideoPlay();
         }, 100);
       }
+    }
+  }
+}
+
+async function logConnectionStats() {
+  try {
+    const stats = await peerConnection.getStats();
+    stats.forEach(report => {
+      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+        console.log('Connection established via:', {
+          local: report.localCandidateId,
+          remote: report.remoteCandidateId,
+          transport: report.transportId
+        });
+      }
+      
+      // Log media stats
+      if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+        console.log('Inbound video stats:', {
+          packetsReceived: report.packetsReceived,
+          bytesReceived: report.bytesReceived,
+          framesDecoded: report.framesDecoded,
+          frameWidth: report.frameWidth,
+          frameHeight: report.frameHeight
+        });
+      }
+    });
+    
+    // Also check remote stream health
+    if (remoteStream) {
+      checkRemoteStreamHealth();
+    }
+  } catch (err) {
+    console.error('Failed to get stats:', err);
+  }
+}
+
+// Enhanced connection recovery function
+async function attemptConnectionRecovery() {
+  if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
+    updateConnectionStatus("Connection failed. Please refresh and try again.");
+    console.error('Max restart attempts reached, giving up');
+    return;
+  }
+
+  restartAttempts++;
+  console.log(`Connection recovery attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS}`);
+  updateConnectionStatus(`Reconnecting (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
+
+  try {
+    // First, try a simple ICE restart
+    if (restartAttempts === 1) {
+      await attemptIceRestart();
+      return;
+    }
+
+    // For subsequent attempts, do a more thorough restart
+    console.log('Attempting full connection restart...');
+    
+    // Close current connection
+    if (peerConnection) {
+      const senders = peerConnection.getSenders();
+      for (const sender of senders) {
+        try {
+          peerConnection.removeTrack(sender);
+        } catch (e) {
+          console.warn('Failed to remove sender:', e);
+        }
+      }
+      peerConnection.close();
+      peerConnection = null;
+    }
+
+    // Reset states
+    isNegotiating = false;
+    remoteDescriptionSet = false;
+    iceCandidateBuffer = [];
+
+    // Get fresh TURN credentials
+    await ensureFreshCredentials();
+
+    // Wait a bit for cleanup
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Recreate connection
+    peerConnection = await createPeerConnection();
+    setupPeerConnectionListenersWithoutNegotiation();
+
+    if (isCaller && roomRef) {
+      // Caller: create new offer
+      console.log('Restarting as caller...');
+      const offer = await peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+        iceRestart: true
+      });
+      
+      await peerConnection.setLocalDescription(offer);
+      
+      await roomRef.update({
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp,
+          iceRestart: true,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }
+      });
+
+      // Re-add negotiation handler after initial setup
+      setTimeout(() => {
+        addNegotiationHandler();
+      }, 1000);
+
+    } else if (roomId) {
+      // Callee: wait for new offer and respond
+      console.log('Restarting as callee, waiting for new offer...');
+      setupCalleeReconnection();
+    }
+
+    startConnectionTimer();
+
+  } catch (error) {
+    console.error('Connection recovery failed:', error);
+    updateConnectionStatus(`Recovery attempt ${restartAttempts} failed`);
+    
+    // Try again after a delay
+    setTimeout(() => {
+      if (restartAttempts < MAX_RESTART_ATTEMPTS) {
+        attemptConnectionRecovery();
+      }
+    }, 2000);
+  }
+}
+
+// Setup callee reconnection logic
+async function setupCalleeReconnection() {
+  if (!roomRef) return;
+
+  const unsubscribe = roomRef.onSnapshot(async (snapshot) => {
+    const data = snapshot.data();
+    if (data?.offer && data.offer.iceRestart) {
+      console.log('Received restart offer from caller');
+      
+      try {
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription(data.offer)
+        );
+
+        const answer = await peerConnection.createAnswer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
+        
+        await peerConnection.setLocalDescription(answer);
+
+        await roomRef.update({
+          answer: {
+            type: answer.type,
+            sdp: answer.sdp,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          }
+        });
+
+        remoteDescriptionSet = true;
+        console.log('Reconnection answer sent');
+        
+        // Stop listening for offers
+        unsubscribe();
+
+      } catch (error) {
+        console.error('Failed to handle restart offer:', error);
+      }
+    }
+  });
+
+  // Stop listening after 10 seconds if no restart offer received
+  setTimeout(() => {
+    unsubscribe();
+  }, 10000);
+}
+
+// Function to flush buffered candidates when Firestore connection recovers
+async function flushLocalCandidateBuffer() {
+  if (!window.localCandidateBuffer || window.localCandidateBuffer.length === 0) {
+    return;
+  }
+
+  console.log(`Attempting to flush ${window.localCandidateBuffer.length} buffered candidates`);
+
+  const candidates = [...window.localCandidateBuffer];
+  window.localCandidateBuffer = [];
+
+  for (const candidateData of candidates) {
+    try {
+      await db.collection("rooms")
+        .doc(roomId)
+        .collection(candidateData.collection)
+        .add(candidateData.candidate);
+      
+      console.log('Successfully flushed candidate to Firestore');
+    } catch (error) {
+      console.error('Failed to flush candidate, re-buffering:', error);
+      window.localCandidateBuffer.push(candidateData);
     }
   }
 }
@@ -1074,10 +1325,15 @@ function handleIncomingIceCandidate(candidate) {
 function startConnectionTimer() {
   clearConnectionTimer();
   connectionTimer = setTimeout(() => {
-    if (peerConnection?.iceConnectionState === "checking" || 
-        peerConnection?.iceConnectionState === "new") {
-      console.log('Connection timeout, attempting restart');
-      attemptIceRestart();
+    const currentState = peerConnection?.iceConnectionState;
+    console.log('Connection timeout triggered, current state:', currentState);
+    
+    if (currentState === "checking" || currentState === "new" || currentState === "gathering") {
+      console.log('Connection timeout, attempting recovery');
+      attemptConnectionRecovery();
+    } else if (currentState === "disconnected" || currentState === "failed") {
+      console.log('Connection in failed state during timeout, attempting recovery');
+      attemptConnectionRecovery();
     }
   }, MAX_CONNECTION_TIME);
 }
