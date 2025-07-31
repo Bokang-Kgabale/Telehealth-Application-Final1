@@ -349,23 +349,62 @@ function setupPeerConnectionListeners() {
 }
 
 function setupPeerConnectionListenersWithoutNegotiation() {
-  // Enhanced ontrack handler
+  // Enhanced ontrack handler with better remote video handling
   peerConnection.ontrack = (event) => {
-    console.log('Track received:', event.track.kind);
+    console.log('Track received:', event.track.kind, 'readyState:', event.track.readyState);
     
-    if (event.streams && event.streams[0]) {
-      console.log('Setting remote stream directly');
+    // Log track details for debugging
+    console.log('Track details:', {
+      kind: event.track.kind,
+      enabled: event.track.enabled,
+      muted: event.track.muted,
+      readyState: event.track.readyState,
+      streamCount: event.streams ? event.streams.length : 0
+    });
+    
+    if (event.streams && event.streams.length > 0) {
+      console.log('Using stream from event.streams[0]');
+      const stream = event.streams[0];
+      
+      // Log stream details
+      console.log('Stream details:', {
+        id: stream.id,
+        active: stream.active,
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length
+      });
+      
       if (remoteVideo) {
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideo.play().catch(e => console.warn('Remote video play failed:', e));
+        remoteVideo.srcObject = stream;
+        remoteStream = stream;
+        
+        // Force play with multiple attempts
+        attemptRemoteVideoPlay();
       }
-      remoteStream = event.streams[0];
     } else {
-      console.log('Adding track to remote stream');
-      remoteStream.addTrack(event.track);
-      if (remoteVideo) {
+      console.log('No streams in event, manually constructing stream');
+      
+      // If no streams, add track to our remote stream
+      if (!remoteStream || !remoteStream.active) {
+        remoteStream = new MediaStream();
+        console.log('Created new MediaStream for remote');
+      }
+      
+      // Check if track is already in the stream
+      const existingTracks = remoteStream.getTracks();
+      const trackExists = existingTracks.some(t => t.id === event.track.id);
+      
+      if (!trackExists) {
+        remoteStream.addTrack(event.track);
+        console.log('Added track to remote stream. Stream now has:', {
+          audioTracks: remoteStream.getAudioTracks().length,
+          videoTracks: remoteStream.getVideoTracks().length
+        });
+      }
+      
+      if (remoteVideo && remoteVideo.srcObject !== remoteStream) {
         remoteVideo.srcObject = remoteStream;
-        remoteVideo.play().catch(e => console.warn('Remote video play failed:', e));
+        attemptRemoteVideoPlay();
       }
     }
     
@@ -395,7 +434,16 @@ function setupPeerConnectionListenersWithoutNegotiation() {
         statusMessage = "Connected";
         updateConnectionQuality("good");
         clearConnectionTimer();
-        logConnectionStats();
+        
+        // Give some time for media to flow, then check
+        setTimeout(() => {
+          logConnectionStats();
+          if (remoteStream && remoteStream.getTracks().length > 0) {
+            checkRemoteStreamHealth();
+          } else {
+            console.warn('Connected but no remote tracks received yet');
+          }
+        }, 2000);
         break;
       case "checking":
         statusMessage = "Connecting...";
@@ -404,16 +452,28 @@ function setupPeerConnectionListenersWithoutNegotiation() {
       case "disconnected":
         statusMessage = "Network issues detected...";
         updateConnectionQuality("poor");
+        
+        // Don't restart immediately on disconnect, wait to see if it recovers
         setTimeout(() => {
           if (peerConnection?.iceConnectionState === "disconnected") {
+            console.log('Still disconnected after 5 seconds, attempting restart');
             attemptIceRestart();
           }
-        }, 3000);
+        }, 5000); // Increased from 3 to 5 seconds
         break;
       case "failed":
         statusMessage = "Connection failed";
         updateConnectionQuality("poor");
         attemptIceRestart();
+        break;
+      case "new":
+      case "gathering":
+        statusMessage = "Preparing connection...";
+        updateConnectionQuality("medium");
+        break;
+      case "closed":
+        statusMessage = "Connection closed";
+        updateConnectionQuality("poor");
         break;
     }
     updateConnectionStatus(statusMessage, state !== "connected" && state !== "completed");
@@ -564,20 +624,128 @@ async function restartCallerFlow() {
   }
 }
 
-async function logConnectionStats() {
+// Add this helper function for better remote video handling
+async function attemptRemoteVideoPlay() {
+  if (!remoteVideo || !remoteVideo.srcObject) return;
+  
   try {
-    const stats = await peerConnection.getStats();
-    stats.forEach(report => {
-      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-        console.log('Connection established via:', {
-          local: report.localCandidateId,
-          remote: report.remoteCandidateId,
-          transport: report.transportId
-        });
+    // Set video properties for better playback
+    remoteVideo.autoplay = true;
+    remoteVideo.playsInline = true;
+    
+    console.log('Attempting to play remote video...');
+    await remoteVideo.play();
+    console.log('Remote video playing successfully');
+    
+    // Verify the video is actually displaying
+    setTimeout(() => {
+      if (remoteVideo.videoWidth > 0 && remoteVideo.videoHeight > 0) {
+        console.log('Remote video dimensions:', remoteVideo.videoWidth, 'x', remoteVideo.videoHeight);
+        updateConnectionStatus("Connected - Video active", false);
+      } else {
+        console.warn('Remote video has no dimensions, checking stream...');
+        checkRemoteStreamHealth();
       }
+    }, 1000);
+    
+  } catch (error) {
+    console.warn('Remote video play failed:', error);
+    
+    // Try different approaches
+    try {
+      remoteVideo.muted = true;
+      await remoteVideo.play();
+      console.log('Remote video playing with muted attribute');
+    } catch (mutedError) {
+      console.error('Even muted play failed:', mutedError);
+      
+      // Last resort: try to reload the stream
+      setTimeout(() => {
+        if (remoteVideo.srcObject) {
+          const currentStream = remoteVideo.srcObject;
+          remoteVideo.srcObject = null;
+          setTimeout(() => {
+            remoteVideo.srcObject = currentStream;
+            remoteVideo.play().catch(e => console.error('Stream reload failed:', e));
+          }, 100);
+        }
+      }, 500);
+    }
+  }
+}
+
+// Add stream health check function
+function checkRemoteStreamHealth() {
+  if (!remoteStream) {
+    console.error('No remote stream available');
+    return;
+  }
+  
+  const audioTracks = remoteStream.getAudioTracks();
+  const videoTracks = remoteStream.getVideoTracks();
+  
+  console.log('Remote stream health check:', {
+    active: remoteStream.active,
+    audioTracks: audioTracks.length,
+    videoTracks: videoTracks.length,
+    audioEnabled: audioTracks.length > 0 ? audioTracks[0].enabled : false,
+    videoEnabled: videoTracks.length > 0 ? videoTracks[0].enabled : false,
+    audioReadyState: audioTracks.length > 0 ? audioTracks[0].readyState : 'none',
+    videoReadyState: videoTracks.length > 0 ? videoTracks[0].readyState : 'none'
+  });
+  
+  // Check if tracks are muted or ended
+  videoTracks.forEach((track, index) => {
+    console.log(`Video track ${index}:`, {
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+      id: track.id
     });
-  } catch (err) {
-    console.error('Failed to get stats:', err);
+    
+    if (track.readyState === 'ended') {
+      console.error('Video track has ended!');
+    }
+  });
+  
+  audioTracks.forEach((track, index) => {
+    console.log(`Audio track ${index}:`, {
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+      id: track.id
+    });
+  });
+  
+  // Check the video element itself
+  if (remoteVideo) {
+    console.log('Remote video element status:', {
+      videoWidth: remoteVideo.videoWidth,
+      videoHeight: remoteVideo.videoHeight,
+      paused: remoteVideo.paused,
+      ended: remoteVideo.ended,
+      readyState: remoteVideo.readyState,
+      networkState: remoteVideo.networkState,
+      currentTime: remoteVideo.currentTime,
+      duration: remoteVideo.duration,
+      srcObject: remoteVideo.srcObject ? 'present' : 'null'
+    });
+    
+    // If no video dimensions, there might be an issue
+    if (remoteVideo.videoWidth === 0 || remoteVideo.videoHeight === 0) {
+      console.warn('Remote video has no dimensions - possible stream issue');
+      
+      // Try to refresh the video element
+      if (remoteVideo.srcObject) {
+        console.log('Attempting to refresh remote video element...');
+        const stream = remoteVideo.srcObject;
+        remoteVideo.srcObject = null;
+        setTimeout(() => {
+          remoteVideo.srcObject = stream;
+          attemptRemoteVideoPlay();
+        }, 100);
+      }
+    }
   }
 }
 
