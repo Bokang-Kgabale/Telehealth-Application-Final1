@@ -367,10 +367,6 @@ async function createPeerConnection() {
       pc.addTrack(track, localStream);
     });
   }
-   // 👇 Add this after creating the peer connection
-  peerConnection.onicecandidateerror = (event) => {
-    console.error("ICE candidate error:", event);
-  };
 
   return pc;
 }
@@ -884,8 +880,6 @@ async function attemptConnectionRecovery() {
     // Recreate connection
     peerConnection = await createPeerConnection();
     setupPeerConnectionListenersWithoutNegotiation();
-
-    
 
     if (isCaller && roomRef) {
       // Caller: create new offer
