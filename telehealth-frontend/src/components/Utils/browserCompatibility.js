@@ -39,7 +39,7 @@ export function checkBrowserCompatibility() {
             isOpera ? 'Opera' : 
             isBrave ? 'Brave' : 
             isIE ? 'Internet Explorer' : 'Unknown',
-      version: userAgent.match(/(?:Chrome|Firefox|Safari|Opera|Edge|Brave|MSIE|rv:)[\/\s](\d+)/)?.[1] || 'unknown',
+      version: userAgent.match(/(?:Chrome|Firefox|Safari|Opera|Edge|Brave|MSIE|rv:)[/\s](\d+)/)?.[1] || 'unknown',
       isMobile: /Mobi|Android|iPhone|iPad|iPod/i.test(userAgent)
     },
     features: {

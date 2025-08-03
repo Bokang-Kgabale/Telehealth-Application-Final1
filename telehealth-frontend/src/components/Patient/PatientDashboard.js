@@ -2,7 +2,10 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import Webcam from "react-webcam";
 import { getDatabase, ref, onValue, off } from "firebase/database";
-import { checkBrowserCompatibility, displayCompatibilityInfo } from '../Utils/browserCompatibility';
+import {
+  checkBrowserCompatibility,
+  displayCompatibilityInfo,
+} from "../Utils/browserCompatibility";
 import MessageNotification from "../Message/MessageNotification";
 import { Link } from "react-router-dom"; // Import Link for debug info navigation
 import "./PatientDashboard.css";
@@ -12,10 +15,9 @@ const PatientDashboard = () => {
   const { state } = useLocation();
   const patientId =
     state?.patientId || sessionStorage.getItem("currentPatientId");
-
+  const [showCameraSettings, setShowCameraSettings] = useState(false);
   const webcamRef = useRef(null);
   const [showCamera, setShowCamera] = useState(false);
-  const [showStream, setShowStream] = useState(false);
   const [capturedImages, setCapturedImages] = useState({
     temperature: null,
     weight: null,
@@ -46,70 +48,76 @@ const PatientDashboard = () => {
   const [roomId, setRoomId] = useState("");
   const [showRoomIdModal, setShowRoomIdModal] = useState(false);
   const [pendingCaptureType, setPendingCaptureType] = useState(null);
-  const [cameraSelectionModal, setCameraSelectionModal] = useState(false);
   const [currentMessage, setCurrentMessage] = useState(null);
   const [assignedRoom, setAssignedRoom] = useState(null);
   const iframeRef = useRef(null);
   const [city] = useState("CPT"); // Default to CPT, but can be dynamic
 
   const refreshDevices = useCallback(() => {
-    navigator.mediaDevices
-      .enumerateDevices()
-      .then((devices) => {
-        const videoDevices = devices.filter(
-          (device) => device.kind === "videoinput"
-        );
-        setCameraDevices(videoDevices);
+  navigator.mediaDevices
+    .enumerateDevices()
+    .then((devices) => {
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+      setCameraDevices(videoDevices);
 
-        if (videoDevices.length > 0) {
-          const temperatureCamera = videoDevices[0].deviceId;
-          const weightCamera =
-            videoDevices.length > 1
-              ? videoDevices[1].deviceId
-              : videoDevices[0].deviceId;
-
-          setSelectedCameras({
-            temperature: temperatureCamera,
-            weight: weightCamera,
+      const savedSettings = localStorage.getItem('patientCameraSettings');
+      
+      if (savedSettings) {
+        try {
+          const parsedSettings = JSON.parse(savedSettings);
+          const validSettings = {};
+          Object.keys(parsedSettings).forEach(type => {
+            const deviceId = parsedSettings[type];
+            const deviceExists = videoDevices.some(device => device.deviceId === deviceId);
+            if (deviceExists) {
+              validSettings[type] = deviceId;
+            }
           });
+          setSelectedCameras(prev => ({ ...prev, ...validSettings }));
+        } catch (error) {
+          console.error('Error parsing saved settings:', error);
+          autoAssignCameras();
         }
-      })
-      .catch((error) => console.error("Error enumerating devices:", error));
-  }, []);
+      } else {
+        autoAssignCameras();
+      }
+
+      // Inline auto-assignment function
+      function autoAssignCameras() {
+        if (videoDevices.length > 0) {
+          const defaultAssignments = {};
+          const types = ["temperature", "weight", "blood_pressure", "glucose", "endoscope"];
+          
+          videoDevices.forEach((device, index) => {
+            if (types[index]) {
+              defaultAssignments[types[index]] = device.deviceId;
+            }
+          });
+          
+          setSelectedCameras(prev => ({ ...prev, ...defaultAssignments }));
+          
+          try {
+            localStorage.setItem('patientCameraSettings', JSON.stringify(defaultAssignments));
+          } catch (error) {
+            console.error('Error saving auto-assigned settings:', error);
+          }
+        }
+      }
+    })
+    .catch((error) => console.error("Error enumerating devices:", error));
+}, []); 
 
   useEffect(() => {
     refreshDevices();
   }, [refreshDevices]);
 
-  const openCaptureWindow = () => {
-    setMode("capture");
-    setShowCamera(true);
-    setShowStream(false);
-    resetState();
-  };
-
-  const toggleLiveStream = async () => {
-    setMode(mode === "stream" ? null : "stream");
-    setShowStream(!showStream);
-    setShowCamera(false);
-    resetState();
-  };
-
   const exitCamera = () => {
-    setShowCamera(false);
-    setShowStream(false);
-    setMode(null);
+    setActiveCapture(null);
     setTimer(5);
     setCameraReady(false);
     setIsCapturing(false);
-    setActiveCapture(null);
-  };
-
-  const resetState = () => {
-    setTimer(5);
-    setCameraReady(false);
-    setIsCapturing(false);
-    setActiveCapture(null);
   };
 
   const uploadImage = useCallback(
@@ -199,6 +207,45 @@ const PatientDashboard = () => {
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
+  useEffect(() => {
+    // Auto-start session when component mounts
+    setMode("session");
+    setShowCamera(true);
+  }, []);
+  const assignCameraToType = (captureType, deviceId) => {
+    const newSettings = {
+      ...selectedCameras,
+      [captureType]: deviceId,
+    };
+
+    setSelectedCameras(newSettings);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(
+        "patientCameraSettings",
+        JSON.stringify(newSettings)
+      );
+      console.log("Saved camera settings:", newSettings);
+    } catch (error) {
+      console.error("Error saving camera settings:", error);
+    }
+  };
+  
+  
+  useEffect(() => {
+    // Load saved camera settings from localStorage
+    const savedCameraSettings = localStorage.getItem("patientCameraSettings");
+    if (savedCameraSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedCameraSettings);
+        setSelectedCameras(parsedSettings);
+        console.log("Loaded saved camera settings:", parsedSettings);
+      } catch (error) {
+        console.error("Error loading camera settings:", error);
+      }
+    }
+  }, []);
   // Message listener effect
   useEffect(() => {
     if (!patientId || !city) {
@@ -253,19 +300,19 @@ const PatientDashboard = () => {
       Notification.requestPermission();
     }
   }, []);
-    useEffect(() => {
+  useEffect(() => {
     // Check browser compatibility on component mount
     const compatibility = checkBrowserCompatibility();
-    
+
     if (!compatibility.compatible) {
       setCurrentMessage({
         content: compatibility.message,
         isError: true,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-      
+
       // Optionally show a persistent warning
-      displayCompatibilityInfo('patient-browser-warning');
+      displayCompatibilityInfo("patient-browser-warning");
     }
 
     // For React, you might want to create a dedicated warning component
@@ -286,7 +333,9 @@ const PatientDashboard = () => {
       if (timer === 1) {
         captureImage(activeCapture);
         clearInterval(timerId);
-        exitCamera();
+        setActiveCapture(null);
+        setTimer(5);
+        setCameraReady(false);
       }
 
       return () => clearInterval(timerId);
@@ -302,15 +351,6 @@ const PatientDashboard = () => {
 
   const handleOnReady = () => {
     setCameraReady(true);
-  };
-
-  const startSession = () => {
-    setMode("session");
-    setShowCamera(true);
-    setShowStream(true);
-    resetState();
-    toggleLiveStream();
-    openCaptureWindow();
   };
 
   const handleConfirmRoomId = () => {
@@ -332,29 +372,8 @@ const PatientDashboard = () => {
       setRoomId(assignedRoom); // Set the room ID from assigned room
       setActiveCapture(type);
       setTimer(5);
-    } else if (cameraDevices.length > 1) {
-      setCameraSelectionModal(true);
     } else {
       setShowRoomIdModal(true);
-    }
-  };
-
-  const handleCameraSelection = (deviceId) => {
-    if (pendingCaptureType) {
-      setSelectedCameras((prev) => ({
-        ...prev,
-        [pendingCaptureType]: deviceId,
-      }));
-      setCameraSelectionModal(false);
-
-      // Use assignedRoom if available, otherwise show room ID modal
-      if (assignedRoom) {
-        setRoomId(assignedRoom);
-        setActiveCapture(pendingCaptureType);
-        setTimer(5);
-      } else {
-        setShowRoomIdModal(true);
-      }
     }
   };
 
@@ -408,13 +427,8 @@ const PatientDashboard = () => {
         <div className="sidebar">
           <h3>Actions</h3>
           <div className="button-group">
-            <button onClick={startSession} className="button start-session-btn">
-              <i className="icon stream-icon"></i>
-              Capture Vitals
-            </button>
-
             <button
-              onClick={() => setCameraSelectionModal(true)}
+              onClick={() => setShowCameraSettings(true)}
               className="button camera-settings-btn"
             >
               <i className="icon camera-icon"></i>
@@ -431,6 +445,18 @@ const PatientDashboard = () => {
               </p>
               <p>
                 <strong>Weight:</strong> {getCameraName(selectedCameras.weight)}
+              </p>
+              <p>
+                <strong>Blood Pressure:</strong>{" "}
+                {getCameraName(selectedCameras.blood_pressure)}
+              </p>
+              <p>
+                <strong>Glucose:</strong>{" "}
+                {getCameraName(selectedCameras.glucose)}
+              </p>
+              <p>
+                <strong>Endoscope:</strong>{" "}
+                {getCameraName(selectedCameras.endoscope)}
               </p>
             </div>
             <div className="camera-count">
@@ -717,37 +743,171 @@ const PatientDashboard = () => {
           Room: {assignedRoom}
         </div>
       )}
-      {cameraSelectionModal && (
+      {showCameraSettings && (
         <div className="modal-backdrop">
-          <div className="modal camera-modal">
-            <h3>Select Camera for {pendingCaptureType || "Capture"}</h3>
+          <div className="modal camera-settings-modal">
+            <h3>Camera Settings</h3>
+            <p>Assign cameras to capture types</p>
 
-            {cameraDevices.length > 0 ? (
-              <div className="camera-options">
+            <div className="camera-assignments">
+              {/* Temperature Camera */}
+              <div className="camera-assignment-row">
+                <label className="assignment-label">
+                  <strong>Temperature:</strong>
+                </label>
+                <select
+                  value={selectedCameras.temperature || ""}
+                  onChange={(e) =>
+                    assignCameraToType("temperature", e.target.value)
+                  }
+                  className="camera-select"
+                >
+                  <option value="">Select Camera</option>
+                  {cameraDevices.map((device, index) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Weight Camera */}
+              <div className="camera-assignment-row">
+                <label className="assignment-label">
+                  <strong>Weight:</strong>
+                </label>
+                <select
+                  value={selectedCameras.weight || ""}
+                  onChange={(e) => assignCameraToType("weight", e.target.value)}
+                  className="camera-select"
+                >
+                  <option value="">Select Camera</option>
+                  {cameraDevices.map((device, index) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Blood Pressure Camera */}
+              <div className="camera-assignment-row">
+                <label className="assignment-label">
+                  <strong>Blood Pressure:</strong>
+                </label>
+                <select
+                  value={selectedCameras.blood_pressure || ""}
+                  onChange={(e) =>
+                    assignCameraToType("blood_pressure", e.target.value)
+                  }
+                  className="camera-select"
+                >
+                  <option value="">Select Camera</option>
+                  {cameraDevices.map((device, index) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Glucose Camera */}
+              <div className="camera-assignment-row">
+                <label className="assignment-label">
+                  <strong>Glucose:</strong>
+                </label>
+                <select
+                  value={selectedCameras.glucose || ""}
+                  onChange={(e) =>
+                    assignCameraToType("glucose", e.target.value)
+                  }
+                  className="camera-select"
+                >
+                  <option value="">Select Camera</option>
+                  {cameraDevices.map((device, index) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Endoscope Camera */}
+              <div className="camera-assignment-row">
+                <label className="assignment-label">
+                  <strong>Endoscope:</strong>
+                </label>
+                <select
+                  value={selectedCameras.endoscope || ""}
+                  onChange={(e) =>
+                    assignCameraToType("endoscope", e.target.value)
+                  }
+                  className="camera-select"
+                >
+                  <option value="">Select Camera</option>
+                  {cameraDevices.map((device, index) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Camera Info */}
+            <div className="camera-info-section">
+              <h4>Available Cameras ({cameraDevices.length})</h4>
+              <div className="available-cameras">
                 {cameraDevices.map((device, index) => (
-                  <button
-                    key={device.deviceId}
-                    className="camera-option-btn"
-                    onClick={() => handleCameraSelection(device.deviceId)}
-                  >
-                    {device.label || `Camera ${index + 1}`}
-                  </button>
+                  <div key={device.deviceId} className="camera-info-item">
+                    <span className="camera-number">#{index + 1}</span>
+                    <span className="camera-name">
+                      {device.label || `Camera ${index + 1}`}
+                    </span>
+                  </div>
                 ))}
               </div>
-            ) : (
-              <p>No cameras detected. Please check your permissions.</p>
-            )}
+            </div>
 
+            {/* Modal Actions */}
             <div className="modal-buttons">
               <button
+                onClick={() => setShowCameraSettings(false)}
+                className="button save-btn"
+              >
+                Save Settings
+              </button>
+              <button onClick={refreshDevices} className="button refresh-btn">
+                Refresh Cameras
+              </button>
+
+              {/* ADD THE RESET BUTTON HERE: */}
+              <button
                 onClick={() => {
-                  setCameraSelectionModal(false);
-                  setPendingCaptureType(null);
+                  localStorage.removeItem("patientCameraSettings");
+                  // Reset to empty state, then refresh to auto-assign
+                  setSelectedCameras({
+                    temperature: "",
+                    weight: "",
+                    blood_pressure: "",
+                    glucose: "",
+                    endoscope: "",
+                  });
+                  refreshDevices();
+                  console.log("Reset camera settings to default");
                 }}
+                className="button reset-btn"
+                style={{ backgroundColor: "#dc3545", color: "white" }}
+              >
+                Reset to Default
+              </button>
+
+              <button
+                onClick={() => setShowCameraSettings(false)}
+                className="button cancel-btn"
               >
                 Cancel
               </button>
-              <button onClick={refreshDevices}>Refresh Cameras</button>
             </div>
           </div>
         </div>

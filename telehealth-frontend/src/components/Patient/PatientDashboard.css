@@ -759,3 +759,97 @@ body {
   margin-top: 0;
   color: inherit;
 }
+.camera-settings-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.camera-assignments {
+  margin: 20px 0;
+}
+
+.camera-assignment-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 15px;
+}
+
+.assignment-label {
+  min-width: 130px;
+  text-align: left;
+}
+
+.camera-select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: white;
+}
+
+.camera-select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.camera-info-section {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.available-cameras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.camera-info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.camera-number {
+  background-color: #007bff;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.camera-name {
+  font-size: 14px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.save-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.refresh-btn {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+}
