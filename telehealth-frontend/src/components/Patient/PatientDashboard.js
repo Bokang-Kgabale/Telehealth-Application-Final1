@@ -34,7 +34,7 @@ const PatientDashboard = () => {
     glucose: "",
     endoscope: "",
   });
-  const [timer, setTimer] = useState(5);
+  const [timer, setTimer] = useState(15);
   const [cameraReady, setCameraReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [activeCapture, setActiveCapture] = useState(null);
@@ -115,7 +115,7 @@ const PatientDashboard = () => {
 
   const exitCamera = () => {
     setActiveCapture(null);
-    setTimer(5);
+    setTimer(15);
     setCameraReady(false);
     setIsCapturing(false);
   };
@@ -334,7 +334,7 @@ const PatientDashboard = () => {
         captureImage(activeCapture);
         clearInterval(timerId);
         setActiveCapture(null);
-        setTimer(5);
+        setTimer(15);
         setCameraReady(false);
       }
 
@@ -360,7 +360,7 @@ const PatientDashboard = () => {
       setRoomId(finalRoomId);
       setShowRoomIdModal(false);
       setActiveCapture(pendingCaptureType);
-      setTimer(5);
+      setTimer(15);
     }
   };
 
@@ -371,7 +371,7 @@ const PatientDashboard = () => {
     if (assignedRoom) {
       setRoomId(assignedRoom); // Set the room ID from assigned room
       setActiveCapture(type);
-      setTimer(5);
+      setTimer(15);
     } else {
       setShowRoomIdModal(true);
     }

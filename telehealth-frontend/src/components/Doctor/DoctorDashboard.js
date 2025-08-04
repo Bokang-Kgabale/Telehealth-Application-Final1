@@ -70,6 +70,7 @@ const DoctorDashboard = () => {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
+  
   useEffect(() => {
     const compatibility = checkBrowserCompatibility();
     
@@ -143,6 +144,168 @@ const DoctorDashboard = () => {
       setCapturedData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Download function for captured data as PDF
+  const downloadCapturedData = () => {
+    if (!capturedData) {
+      alert("No data available to download");
+      return;
+    }
+
+    try {
+      // Load jsPDF dynamically
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      script.onload = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Set up document properties
+        const pageWidth = doc.internal.pageSize.width;
+        const margin = 20;
+        const lineHeight = 10;
+        let yPosition = 30;
+
+        // Header
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('Patient Vitals Report', margin, yPosition);
+        
+        yPosition += 20;
+        
+        // Report information
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Room ID: ${searchQuery}`, margin, yPosition);
+        yPosition += lineHeight;
+        
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, margin, yPosition);
+        yPosition += lineHeight;
+        
+        doc.text(`Time: ${new Date().toLocaleTimeString()}`, margin, yPosition);
+        yPosition += lineHeight;
+        
+        if (doctorName) {
+          doc.text(`Doctor: Dr. ${doctorName}`, margin, yPosition);
+          yPosition += lineHeight;
+        }
+        
+        const cityName = availableCities.find((c) => c.code === currentCity)?.name;
+        if (cityName) {
+          doc.text(`Location: ${cityName}`, margin, yPosition);
+          yPosition += lineHeight;
+        }
+        
+        yPosition += 10;
+        
+        // Draw separator line
+        doc.setDrawColor(0, 0, 0);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 15;
+        
+        // Vitals section header
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text('Vital Signs', margin, yPosition);
+        yPosition += 15;
+        
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        
+        // Temperature data
+        if (capturedData.temperature) {
+          doc.setFont(undefined, 'bold');
+          doc.text('Temperature:', margin, yPosition);
+          doc.setFont(undefined, 'normal');
+          doc.text(capturedData.temperature.formatted_value, margin + 40, yPosition);
+          yPosition += lineHeight;
+          
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Raw reading: ${capturedData.temperature.raw_text}`, margin + 10, yPosition);
+          yPosition += lineHeight;
+          doc.text(`Confidence: ${capturedData.temperature.confidence}`, margin + 10, yPosition);
+          yPosition += lineHeight + 5;
+          doc.setTextColor(0, 0, 0);
+        }
+        
+        // Weight data
+        if (capturedData.weight) {
+          doc.setFont(undefined, 'bold');
+          doc.text('Weight:', margin, yPosition);
+          doc.setFont(undefined, 'normal');
+          doc.text(capturedData.weight.formatted_value, margin + 40, yPosition);
+          yPosition += lineHeight;
+          
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Raw reading: ${capturedData.weight.raw_text}`, margin + 10, yPosition);
+          yPosition += lineHeight;
+          doc.text(`Confidence: ${capturedData.weight.confidence}`, margin + 10, yPosition);
+          yPosition += lineHeight + 5;
+          doc.setTextColor(0, 0, 0);
+        }
+        
+        // Glucose data
+        if (capturedData.glucose) {
+          doc.setFont(undefined, 'bold');
+          doc.text('Blood Glucose:', margin, yPosition);
+          doc.setFont(undefined, 'normal');
+          doc.text(capturedData.glucose.formatted_value, margin + 40, yPosition);
+          yPosition += lineHeight;
+          
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Raw reading: ${capturedData.glucose.raw_text}`, margin + 10, yPosition);
+          yPosition += lineHeight;
+          doc.text(`Confidence: ${capturedData.glucose.confidence}`, margin + 10, yPosition);
+          yPosition += lineHeight + 5;
+          doc.setTextColor(0, 0, 0);
+        }
+        
+        // Blood pressure data
+        if (capturedData.blood_pressure) {
+          doc.setFont(undefined, 'bold');
+          doc.text('Blood Pressure:', margin, yPosition);
+          doc.setFont(undefined, 'normal');
+          doc.text(capturedData.blood_pressure.formatted_value, margin + 40, yPosition);
+          yPosition += lineHeight;
+          
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Raw reading: ${capturedData.blood_pressure.raw_text}`, margin + 10, yPosition);
+          yPosition += lineHeight;
+          doc.text(`Confidence: ${capturedData.blood_pressure.confidence}`, margin + 10, yPosition);
+          yPosition += lineHeight + 5;
+          doc.setTextColor(0, 0, 0);
+        }
+        
+        // Footer
+        yPosition += 20;
+        doc.setDrawColor(0, 0, 0);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Generated by Medical Data Capture System', margin, yPosition);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, yPosition + 8);
+        
+        // Save the PDF
+        const fileName = `patient-vitals-${searchQuery}-${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+        
+        alert("Patient vitals PDF downloaded successfully!");
+      };
+      
+      script.onerror = () => {
+        console.error("Failed to load jsPDF library");
+        alert("Error loading PDF library. Please try again.");
+      };
+      
+      document.head.appendChild(script);
+      
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("Error downloading PDF. Please try again.");
     }
   };
 
@@ -330,7 +493,18 @@ const DoctorDashboard = () => {
         </div>
 
         <div className="results-panel">
-          <h3>Patient Vitals</h3>
+          <div className="results-header">
+            <h3>Patient Vitals</h3>
+            {capturedData && (
+              <button
+                className="download-button"
+                onClick={downloadCapturedData}
+                title="Download patient vitals data"
+              >
+                <i className="fas fa-file-pdf"></i> Download PDF
+              </button>
+            )}
+          </div>
 
           <div className="search-section">
             <div className="search-container">
