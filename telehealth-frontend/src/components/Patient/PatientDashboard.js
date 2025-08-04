@@ -476,7 +476,7 @@ const PatientDashboard = () => {
                 "weight",
                 "blood_pressure",
                 "glucose",
-                //"endoscope",
+                "endoscope",
               ].map((type) => (
                 <button
                   key={type}
@@ -643,16 +643,7 @@ const PatientDashboard = () => {
             {/* Endoscope */}
             {capturedData.endoscope && (
               <div className="result-card">
-                <h4>Endoscope</h4>
-                <div className="result-value">
-                  {capturedData.endoscope?.formatted_value || "N/A"}
-                </div>
-                <div className="result-meta">
-                  <p>Raw OCR: {capturedData.endoscope?.raw_text || "N/A"}</p>
-                  <p>
-                    Confidence: {capturedData.endoscope?.confidence || "N/A"}
-                  </p>
-                </div>
+                <h4>Endoscope</h4>                
                 {capturedImages.endoscope && (
                   <img
                     src={capturedImages.endoscope}
