@@ -110,8 +110,7 @@ const connectionStatus = document.getElementById("connectionStatus");
 const statusText = document.getElementById("statusText");
 const connectionQuality = document.getElementById("connectionQuality");
 const currentRoomDisplay = document.getElementById("currentRoom");
-const openMediaBtn = document.getElementById("openMedia");
-const startCallBtn = document.getElementById("startCall");
+const startCallWithMediaBtn = document.getElementById("startCallWithMedia");
 const joinCallBtn = document.getElementById("joinCall");
 const hangUpBtn = document.getElementById("hangUp");
 const toggleVideoBtn = document.getElementById("toggleVideo");
@@ -254,14 +253,10 @@ function initializeVideoCall() {
 }
 
 function setupUI() {
-  if (openMediaBtn) {
-    openMediaBtn.addEventListener("click", openUserMedia);
+  const startCallWithMediaBtn = document.getElementById("startCallWithMedia");
+  if (startCallWithMediaBtn) {
+    startCallWithMediaBtn.addEventListener("click", startCallWithMedia);
   }
-
-  if (startCallBtn) {
-    startCallBtn.addEventListener("click", startVideoCall);
-  }
-  
   if (joinCallBtn) {
     joinCallBtn.addEventListener("click", async () => {
       const inputId = prompt("Enter Room ID:");
@@ -317,22 +312,34 @@ async function openUserMedia() {
       localVideo.play().catch(e => console.warn('Local video play failed:', e));
     }
 
-    if (startCallBtn) startCallBtn.disabled = false;
     if (joinCallBtn) joinCallBtn.disabled = false;
     if (muteAudioBtn) muteAudioBtn.disabled = false;
     if (toggleVideoBtn) toggleVideoBtn.disabled = false;
 
     updateConnectionStatus("Ready to connect", false);
 
-    if (openMediaBtn) {
-      openMediaBtn.style.display = "none";
-    }
   } catch (error) {
     console.error("Media access error:", error);
     updateConnectionStatus("Media access failed");
     alert(
       "Unable to access camera and microphone. Please allow permissions and try again."
     );
+  }
+}
+async function startCallWithMedia() {
+  try {
+    updateConnectionStatus("Opening camera and starting call...");
+    
+    // First, open the media (camera/microphone)
+    await openUserMedia();
+    
+    // Then immediately start the video call
+    await startVideoCall();
+    
+  } catch (error) {
+    console.error("Failed to start call with media:", error);
+    updateConnectionStatus("Failed to start call");
+    alert("Unable to start call. Please check your camera/microphone permissions and try again.");
   }
 }
 
@@ -1378,16 +1385,11 @@ async function hangUp() {
   if (localVideo) localVideo.srcObject = null;
   if (remoteVideo) remoteVideo.srcObject = null;
   if (currentRoomDisplay) currentRoomDisplay.innerText = "";
-
-  if (startCallBtn) startCallBtn.disabled = true;
+  if (startCallWithMediaBtn) startCallWithMediaBtn.disabled = false;
   if (joinCallBtn) joinCallBtn.disabled = true;
   if (hangUpBtn) hangUpBtn.disabled = true;
   if (muteAudioBtn) muteAudioBtn.disabled = true;
   if (toggleVideoBtn) toggleVideoBtn.disabled = true;
-
-  if (openMediaBtn) {
-    openMediaBtn.style.display = "block";
-  }
 
   updateConnectionStatus("Call ended", false);
   remoteDescriptionSet = false;

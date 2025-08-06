@@ -1,195 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>WebRTC Video Call</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebRTC Video Call</title>
 
-   <!-- Add this first -->
-  <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <!-- Add this first -->
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
-  <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/static/styles.css" />
 
-  <!-- Font Awesome -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
-  
-  <style>
-    /* Additional styles with reduced spacing */
-    .button-container {
-      margin-bottom: 8px; /* Reduced bottom margin of button container */
-    }
-    
-    .room-info {
-      margin-top: 8px; /* Reduced top margin of room info */
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .room-code {
-      padding: 6px 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      background-color: #f5f5f5;
-      font-family: monospace;
-      font-size: 16px;
-      cursor: pointer;
-      display: inline-block;
-      min-width: 120px;
-    }
-    
-    .copy-button, .email-button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .email-button {
-      background-color: #2196F3; /* Blue for email */
-    }
-    
-    .email-button:hover {
-      background-color: #0b7dda;
-    }
-    
-    .copy-button:hover {
-      background-color: #45a049;
-    }
-    
-    .copy-feedback {
-      display: none;
-      color: #4CAF50;
-      font-size: 14px;
-      margin-left: 10px;
-    }
-  </style>
-</head>
-<body>
-  <!-- Connection Status Indicator -->
-  <div id="connectionStatus" class="connection-status">
-    <div class="connection-spinner"></div>
-    <span id="statusText">Ready to connect</span>
-  </div>
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      rel="stylesheet"
+    />
 
-  <!-- Video Container -->
-  <div class="video-container">
-    <!-- Remote Video (Background) -->
-    <video id="remoteVideo" autoplay playsinline>
-      Your browser does not support the video tag.
-    </video>
-    <!-- Local Video (Overlay) -->
-    <video id="localVideo" autoplay playsinline>
-      Your browser does not support the video tag.
-    </video>
-    
-    <!-- Connection Quality Indicator -->
-    <div id="connectionQuality" class="connection-quality">
-      <i class="fas fa-circle"></i>
-      <span>Connection quality</span>
+    <style>
+      /* Additional styles with reduced spacing */
+      .button-container {
+        margin-bottom: 8px; /* Reduced bottom margin of button container */
+      }
+
+      .room-info {
+        margin-top: 8px; /* Reduced top margin of room info */
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .room-code {
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #f5f5f5;
+        font-family: monospace;
+        font-size: 16px;
+        cursor: pointer;
+        display: inline-block;
+        min-width: 120px;
+      }
+
+      .copy-button,
+      .email-button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .email-button {
+        background-color: #2196f3; /* Blue for email */
+      }
+
+      .email-button:hover {
+        background-color: #0b7dda;
+      }
+
+      .copy-button:hover {
+        background-color: #45a049;
+      }
+
+      .copy-feedback {
+        display: none;
+        color: #4caf50;
+        font-size: 14px;
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status">
+      <div class="connection-spinner"></div>
+      <span id="statusText">Ready to connect</span>
     </div>
-  </div>
 
-  <!-- Buttons -->
-  <div class="button-container">
-    <button id="openMedia" title="Open Camera">
-      <i class="fas fa-video"></i>
-    </button>
-    <button id="startCall" title="Start Call">
-      <i class="fas fa-phone"></i>
-    </button>
-    <button id="joinCall" title="Join Call">
-      <i class="fas fa-user-plus"></i>
-    </button>
-    <button id="hangUp" title="Hang Up">
-      <i class="fas fa-phone-slash"></i>
-    </button>
-    <button id="muteAudio" title="Mute Audio">
-      <i class="fas fa-microphone"></i>
-    </button>
-    <button id="toggleVideo" title="Disable Camera">
-      <i class="fas fa-video"></i>
-    </button>
-  </div>
+    <!-- Video Container -->
+    <div class="video-container">
+      <!-- Remote Video (Background) -->
+      <video id="remoteVideo" autoplay playsinline>
+        Your browser does not support the video tag.
+      </video>
+      <!-- Local Video (Overlay) -->
+      <video id="localVideo" autoplay playsinline>
+        Your browser does not support the video tag.
+      </video>
 
-  <!-- Room Info - with copy and email share options -->
-  <div class="room-info">
-    <div id="currentRoom" class="room-code" onclick="copyRoomCode()"></div>
-    <button id="copyButton" class="copy-button" onclick="copyRoomCode()" title="Copy Room ID">
-      <i class="fas fa-copy"></i>
-    </button>
-    <button id="emailButton" class="email-button" onclick="emailRoomCode()" title="Email Room ID">
-      <i class="fas fa-envelope"></i>
-    </button>
-    <span id="copyFeedback" class="copy-feedback">Copied!</span>
-  </div>
+      <!-- Connection Quality Indicator -->
+      <div id="connectionQuality" class="connection-quality">
+        <i class="fas fa-circle"></i>
+        <span>Connection quality</span>
+      </div>
+    </div>
 
-  <!-- Main Script -->
-  <script src="/static/script.js"></script>
-  
-  <!-- Additional script for copy and email functionality -->
-  <script>
-    // Copy function
-    function copyRoomCode() {
-      const roomCode = document.getElementById('currentRoom').textContent.trim();
-      if (!roomCode) return;
-      
-      // Use modern clipboard API
-      navigator.clipboard.writeText(roomCode)
-        .then(() => {
-          // Show feedback
-          const feedback = document.getElementById('copyFeedback');
-          feedback.style.display = 'inline';
-          
-          // Hide feedback after 2 seconds
-          setTimeout(() => {
-            feedback.style.display = 'none';
-          }, 2000);
-        })
-        .catch(err => {
-          console.error('Could not copy room code: ', err);
-          
-          // Fallback method
-          const tempInput = document.createElement('input');
-          tempInput.value = roomCode;
-          document.body.appendChild(tempInput);
-          tempInput.select();
-          document.execCommand('copy');
-          document.body.removeChild(tempInput);
-          
-          // Show feedback for fallback as well
-          const feedback = document.getElementById('copyFeedback');
-          feedback.style.display = 'inline';
-          setTimeout(() => {
-            feedback.style.display = 'none';
-          }, 2000);
-        });
-    }
-    
-    // Email function - opens user's default email client with room ID in body
-    function emailRoomCode() {
-      const roomCode = document.getElementById('currentRoom').textContent.trim();
-      if (!roomCode) return;
-      
-      const subject = "Join my video call";
-      const body = `Join my video call by copying and pasting the following room ID on the join call button. Here is the room ID: ${roomCode}`;
-      
-      // Create mailto link
-      const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      
-      // Open the email client
-      window.location.href = mailtoLink;
-    }
-  </script>
-</body>
+    <!-- Buttons -->
+    <div class="button-container">
+      <button id="startCallWithMedia" title="Start Call">
+        <i class="fas fa-phone"></i>
+      </button>
+      <button id="joinCall" title="Join Call">
+        <i class="fas fa-user-plus"></i>
+      </button>
+      <button id="hangUp" title="Hang Up">
+        <i class="fas fa-phone-slash"></i>
+      </button>
+      <button id="muteAudio" title="Mute Audio">
+        <i class="fas fa-microphone"></i>
+      </button>
+      <button id="toggleVideo" title="Disable Camera">
+        <i class="fas fa-video"></i>
+      </button>
+    </div>
+
+    <!-- Room Info - with copy and email share options -->
+    <div class="room-info">
+      <div id="currentRoom" class="room-code" onclick="copyRoomCode()"></div>
+      <button
+        id="copyButton"
+        class="copy-button"
+        onclick="copyRoomCode()"
+        title="Copy Room ID"
+      >
+        <i class="fas fa-copy"></i>
+      </button>
+      <button
+        id="emailButton"
+        class="email-button"
+        onclick="emailRoomCode()"
+        title="Email Room ID"
+      >
+        <i class="fas fa-envelope"></i>
+      </button>
+      <span id="copyFeedback" class="copy-feedback">Copied!</span>
+    </div>
+
+    <!-- Main Script -->
+    <script src="/static/script.js"></script>
+
+    <!-- Additional script for copy and email functionality -->
+    <script>
+      // Copy function
+      function copyRoomCode() {
+        const roomCode = document
+          .getElementById("currentRoom")
+          .textContent.trim();
+        if (!roomCode) return;
+
+        // Use modern clipboard API
+        navigator.clipboard
+          .writeText(roomCode)
+          .then(() => {
+            // Show feedback
+            const feedback = document.getElementById("copyFeedback");
+            feedback.style.display = "inline";
+
+            // Hide feedback after 2 seconds
+            setTimeout(() => {
+              feedback.style.display = "none";
+            }, 2000);
+          })
+          .catch((err) => {
+            console.error("Could not copy room code: ", err);
+
+            // Fallback method
+            const tempInput = document.createElement("input");
+            tempInput.value = roomCode;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            // Show feedback for fallback as well
+            const feedback = document.getElementById("copyFeedback");
+            feedback.style.display = "inline";
+            setTimeout(() => {
+              feedback.style.display = "none";
+            }, 2000);
+          });
+      }
+
+      // Email function - opens user's default email client with room ID in body
+      function emailRoomCode() {
+        const roomCode = document
+          .getElementById("currentRoom")
+          .textContent.trim();
+        if (!roomCode) return;
+
+        const subject = "Join my video call";
+        const body = `Join my video call by copying and pasting the following room ID on the join call button. Here is the room ID: ${roomCode}`;
+
+        // Create mailto link
+        const mailtoLink = `mailto:?subject=${encodeURIComponent(
+          subject
+        )}&body=${encodeURIComponent(body)}`;
+
+        // Open the email client
+        window.location.href = mailtoLink;
+      }
+    </script>
+  </body>
 </html>
