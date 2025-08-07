@@ -471,8 +471,7 @@ const PatientDashboard = () => {
                 {getCameraName(selectedCameras.endoscope)}
               </p>
               <p>
-                <strong>Webcam:</strong>{""}
-                {getCameraName(selectedCameras.webcam)}
+                <strong>Webcam:</strong> {getCameraName(selectedCameras.webcam)}
               </p>
             </div>
             <div className="camera-count">
@@ -731,7 +730,7 @@ const PatientDashboard = () => {
           </div>
         </div>
       )}
-     {/* {assignedRoom && (
+      {/* {assignedRoom && (
         <div
           style={{
             backgroundColor: "#2ecc71",
@@ -772,7 +771,6 @@ const PatientDashboard = () => {
                   ))}
                 </select>
               </div>
-
               {/* Weight Camera */}
               <div className="camera-assignment-row">
                 <label className="assignment-label">
@@ -791,7 +789,6 @@ const PatientDashboard = () => {
                   ))}
                 </select>
               </div>
-
               {/* Blood Pressure Camera */}
               <div className="camera-assignment-row">
                 <label className="assignment-label">
@@ -856,22 +853,22 @@ const PatientDashboard = () => {
               </div>
               {/* Webcam Camera */}
               <div className="camera-assignment-row">
-  <label className="assignment-label">
-    <strong>Webcam (Video Conferencing):</strong>
-  </label>
-  <select
-    value={selectedCameras.webcam || ""}
-    onChange={(e) => assignCameraToType("webcam", e.target.value)}
-    className="camera-select"
-  >
-    <option value="">Select Camera</option>
-    {cameraDevices.map((device, index) => (
-      <option key={device.deviceId} value={device.deviceId}>
-        {device.label || `Camera ${index + 1}`}
-      </option>
-    ))}
-  </select>
-</div>
+                <label className="assignment-label">
+                  <strong>Webcam (Video Conferencing):</strong>
+                </label>
+                <select
+                  value={selectedCameras.webcam || ""}
+                  onChange={(e) => assignCameraToType("webcam", e.target.value)}
+                  className="camera-select"
+                >
+                  <option value="">Select Camera</option>
+                  {cameraDevices.map((device, index) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Camera Info */}
