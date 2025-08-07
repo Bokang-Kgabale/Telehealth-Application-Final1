@@ -872,7 +872,7 @@ body {
   align-items: center;
   margin-bottom: 1rem;
 }
-
+/* Download Button */
 .download-button {
   background-color: #28a745;
   color: white;
@@ -893,6 +893,61 @@ body {
 .download-button:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
+}
+/* Listening Indicator */
+.auto-listening-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #28a745;
+  font-size: 14px;
+  color: #495057;
+}
+
+.listening-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #dc3545;
+}
+
+.listening-dot.active {
+  background-color: #28a745;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.search-button {
+  white-space: nowrap;
+}
+
+/* Auto Listening Badge */
+.auto-badge {
+  background-color: #28a745;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 8px;
+  font-weight: normal;
 }
 /* ===== Utility Classes ===== */
 .text-center { text-align: center; }

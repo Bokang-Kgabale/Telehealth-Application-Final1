@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
-import { getDatabase, ref, onValue, off } from "firebase/database"; // Realtime Database
+import { getDatabase, ref, onValue, off, get } from "firebase/database"; // Realtime Database
 import { getAuth } from "firebase/auth";
-import { checkBrowserCompatibility } from '../Utils/browserCompatibility';
+import { checkBrowserCompatibility } from "../Utils/browserCompatibility";
 import {
   handlePatientClick,
   sendMessageToPatient,
@@ -20,11 +20,14 @@ const DoctorDashboard = () => {
   const [doctorName, setDoctorName] = useState("");
   const [patientQueue, setPatientQueue] = useState([]);
   const [browserWarning, setBrowserWarning] = useState(null);
+  // Predefined list of cities
+  // This can be replaced with a dynamic fetch from your database if needed
   const [availableCities] = useState([
     { code: "CPT", name: "Cape Town Hub" },
     { code: "JHB", name: "Johannesburg Base" },
   ]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isAutoListening, setIsAutoListening] = useState(false);
 
   // Fetch doctor's name on component mount
   useEffect(() => {
@@ -70,15 +73,114 @@ const DoctorDashboard = () => {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
-  
+
   useEffect(() => {
     const compatibility = checkBrowserCompatibility();
-    
-    if (compatibility.level === 'problematic') {
+
+    if (compatibility.level === "problematic") {
       setBrowserWarning({
         title: `Compatibility Issue with ${compatibility.browser.name}`,
         message: compatibility.message,
-        actions: compatibility.actions
+        actions: compatibility.actions,
+      });
+    }
+  }, []);
+
+  // Automatically listen for captured data when currentRoomId changes
+  useEffect(() => {
+    if (!currentRoomId) {
+      setCapturedData(null);
+      setIsAutoListening(false);
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      console.error("No authenticated user found");
+      window.location.href = "/login";
+      return;
+    }
+
+    setIsAutoListening(true);
+    const db = getDatabase();
+    const capturedDataRef = ref(db, `capturedData/${currentRoomId}`);
+
+    console.log(`Starting auto-listener for room: ${currentRoomId}`);
+
+    // Listen for realtime updates to captured data
+    const unsubscribe = onValue(
+      capturedDataRef,
+      (snapshot) => {
+        const data = snapshot.val();
+
+        if (data) {
+          console.log("Captured data received automatically:", data);
+
+          // Transform the data to match your expected format
+          const transformedData = {
+            temperature: data.temperature
+              ? {
+                  raw_text:
+                    data.temperature.raw_text || data.temperature.rawText,
+                  confidence: data.temperature.confidence || "N/A",
+                }
+              : null,
+            weight: data.weight
+              ? {
+                  raw_text: data.weight.raw_text || data.weight.rawText,
+                  confidence: data.weight.confidence || "N/A",
+                }
+              : null,
+            glucose: data.glucose
+              ? {
+                  raw_text: data.glucose.raw_text || data.glucose.rawText,
+                  confidence: data.glucose.confidence || "N/A",
+                }
+              : null,
+            blood_pressure: data.blood_pressure
+              ? {
+                  raw_text:
+                    data.blood_pressure.raw_text || data.blood_pressure.rawText,
+                  confidence: data.blood_pressure.confidence || "N/A",
+                }
+              : null,
+          };
+
+          setCapturedData(transformedData);
+
+          // Optional: Show a notification when new data arrives
+          if (window.Notification && Notification.permission === "granted") {
+            new Notification("New Patient Data Available", {
+              body: `Vitals data captured for room ${currentRoomId}`,
+              icon: "/favicon.ico",
+            });
+          }
+        } else {
+          console.log(`No captured data found for room: ${currentRoomId}`);
+          setCapturedData(null);
+        }
+      },
+      (error) => {
+        console.error("Error listening for captured data:", error);
+        setIsAutoListening(false);
+      }
+    );
+
+    // Cleanup listener when room ID changes or component unmounts
+    return () => {
+      console.log(`Stopping auto-listener for room: ${currentRoomId}`);
+      off(capturedDataRef, unsubscribe);
+      setIsAutoListening(false);
+    };
+  }, [currentRoomId]); // Dependency on currentRoomId
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    // Request notification permission on component mount
+    if (window.Notification && Notification.permission === "default") {
+      Notification.requestPermission().then((permission) => {
+        console.log("Notification permission:", permission);
       });
     }
   }, []);
@@ -156,8 +258,9 @@ const DoctorDashboard = () => {
 
     try {
       // Load jsPDF dynamically
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      const script = document.createElement("script");
+      script.src =
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
       script.onload = () => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -170,139 +273,179 @@ const DoctorDashboard = () => {
 
         // Header
         doc.setFontSize(20);
-        doc.setFont(undefined, 'bold');
-        doc.text('Patient Vitals Report', margin, yPosition);
-        
+        doc.setFont(undefined, "bold");
+        doc.text("Patient Vitals Report", margin, yPosition);
+
         yPosition += 20;
-        
+
         // Report information
         doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
+        doc.setFont(undefined, "normal");
         doc.text(`Room ID: ${searchQuery}`, margin, yPosition);
         yPosition += lineHeight;
-        
+
         doc.text(`Date: ${new Date().toLocaleDateString()}`, margin, yPosition);
         yPosition += lineHeight;
-        
+
         doc.text(`Time: ${new Date().toLocaleTimeString()}`, margin, yPosition);
         yPosition += lineHeight;
-        
+
         if (doctorName) {
           doc.text(`Doctor: Dr. ${doctorName}`, margin, yPosition);
           yPosition += lineHeight;
         }
-        
-        const cityName = availableCities.find((c) => c.code === currentCity)?.name;
+
+        const cityName = availableCities.find(
+          (c) => c.code === currentCity
+        )?.name;
         if (cityName) {
           doc.text(`Location: ${cityName}`, margin, yPosition);
           yPosition += lineHeight;
         }
-        
+
         yPosition += 10;
-        
+
         // Draw separator line
         doc.setDrawColor(0, 0, 0);
         doc.line(margin, yPosition, pageWidth - margin, yPosition);
         yPosition += 15;
-        
+
         // Vitals section header
         doc.setFontSize(16);
-        doc.setFont(undefined, 'bold');
-        doc.text('Vital Signs', margin, yPosition);
+        doc.setFont(undefined, "bold");
+        doc.text("Vital Signs", margin, yPosition);
         yPosition += 15;
-        
+
         doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
-        
+        doc.setFont(undefined, "normal");
+
         // Temperature data
         if (capturedData.temperature) {
-          doc.setFont(undefined, 'bold');
-          doc.text('Temperature:', margin, yPosition);
-          doc.setFont(undefined, 'normal');
-          doc.text(capturedData.temperature.formatted_value, margin + 40, yPosition);
+          doc.setFont(undefined, "bold");
+          doc.text("Temperature:", margin, yPosition);
+          doc.setFont(undefined, "normal");
+          doc.text(
+            `Raw reading: ${capturedData.temperature.raw_text}`,
+            margin + 40,
+            yPosition
+          );
           yPosition += lineHeight;
-          
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Raw reading: ${capturedData.temperature.raw_text}`, margin + 10, yPosition);
-          yPosition += lineHeight;
-          doc.text(`Confidence: ${capturedData.temperature.confidence}`, margin + 10, yPosition);
+          doc.text(
+            `Confidence: ${capturedData.temperature.confidence}`,
+            margin + 10,
+            yPosition
+          );
           yPosition += lineHeight + 5;
           doc.setTextColor(0, 0, 0);
         }
-        
+
         // Weight data
         if (capturedData.weight) {
-          doc.setFont(undefined, 'bold');
-          doc.text('Weight:', margin, yPosition);
-          doc.setFont(undefined, 'normal');
-          doc.text(capturedData.weight.formatted_value, margin + 40, yPosition);
+          doc.setFont(undefined, "bold");
+          doc.text("Weight:", margin, yPosition);
+          doc.setFont(undefined, "normal");
+          doc.text(
+            `Raw reading: ${capturedData.weight.raw_text}`,
+            margin + 40,
+            yPosition
+          );
           yPosition += lineHeight;
-          
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Raw reading: ${capturedData.weight.raw_text}`, margin + 10, yPosition);
           yPosition += lineHeight;
-          doc.text(`Confidence: ${capturedData.weight.confidence}`, margin + 10, yPosition);
+          doc.text(
+            `Confidence: ${capturedData.weight.confidence}`,
+            margin + 10,
+            yPosition
+          );
           yPosition += lineHeight + 5;
           doc.setTextColor(0, 0, 0);
         }
-        
+
         // Glucose data
         if (capturedData.glucose) {
-          doc.setFont(undefined, 'bold');
-          doc.text('Blood Glucose:', margin, yPosition);
-          doc.setFont(undefined, 'normal');
-          doc.text(capturedData.glucose.formatted_value, margin + 40, yPosition);
+          doc.setFont(undefined, "bold");
+          doc.text("Blood Glucose:", margin, yPosition);
+          doc.setFont(undefined, "normal");
+          doc.text(
+            capturedData.glucose.formatted_value,
+            margin + 40,
+            yPosition
+          );
           yPosition += lineHeight;
-          
+
           doc.setTextColor(100, 100, 100);
-          doc.text(`Raw reading: ${capturedData.glucose.raw_text}`, margin + 10, yPosition);
+          doc.text(
+            `Raw reading: ${capturedData.glucose.raw_text}`,
+            margin + 10,
+            yPosition
+          );
           yPosition += lineHeight;
-          doc.text(`Confidence: ${capturedData.glucose.confidence}`, margin + 10, yPosition);
+          doc.text(
+            `Confidence: ${capturedData.glucose.confidence}`,
+            margin + 10,
+            yPosition
+          );
           yPosition += lineHeight + 5;
           doc.setTextColor(0, 0, 0);
         }
-        
+
         // Blood pressure data
         if (capturedData.blood_pressure) {
-          doc.setFont(undefined, 'bold');
-          doc.text('Blood Pressure:', margin, yPosition);
-          doc.setFont(undefined, 'normal');
-          doc.text(capturedData.blood_pressure.formatted_value, margin + 40, yPosition);
+          doc.setFont(undefined, "bold");
+          doc.text("Blood Pressure:", margin, yPosition);
+          doc.setFont(undefined, "normal");
+          doc.text(
+            capturedData.blood_pressure.formatted_value,
+            margin + 40,
+            yPosition
+          );
           yPosition += lineHeight;
-          
+
           doc.setTextColor(100, 100, 100);
-          doc.text(`Raw reading: ${capturedData.blood_pressure.raw_text}`, margin + 10, yPosition);
+          doc.text(
+            `Raw reading: ${capturedData.blood_pressure.raw_text}`,
+            margin + 10,
+            yPosition
+          );
           yPosition += lineHeight;
-          doc.text(`Confidence: ${capturedData.blood_pressure.confidence}`, margin + 10, yPosition);
+          doc.text(
+            `Confidence: ${capturedData.blood_pressure.confidence}`,
+            margin + 10,
+            yPosition
+          );
           yPosition += lineHeight + 5;
           doc.setTextColor(0, 0, 0);
         }
-        
+
         // Footer
         yPosition += 20;
         doc.setDrawColor(0, 0, 0);
         doc.line(margin, yPosition, pageWidth - margin, yPosition);
         yPosition += 10;
-        
+
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
-        doc.text('Generated by Medical Data Capture System', margin, yPosition);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, yPosition + 8);
-        
+        doc.text("Generated by Medical Data Capture System", margin, yPosition);
+        doc.text(
+          `Generated on: ${new Date().toLocaleString()}`,
+          margin,
+          yPosition + 8
+        );
+
         // Save the PDF
-        const fileName = `patient-vitals-${searchQuery}-${new Date().toISOString().split('T')[0]}.pdf`;
+        const fileName = `patient-vitals-${searchQuery}-${
+          new Date().toISOString().split("T")[0]
+        }.pdf`;
         doc.save(fileName);
-        
+
         alert("Patient vitals PDF downloaded successfully!");
       };
-      
+
       script.onerror = () => {
         console.error("Failed to load jsPDF library");
         alert("Error loading PDF library. Please try again.");
       };
-      
+
       document.head.appendChild(script);
-      
     } catch (error) {
       console.error("Error downloading PDF:", error);
       alert("Error downloading PDF. Please try again.");
@@ -494,7 +637,10 @@ const DoctorDashboard = () => {
 
         <div className="results-panel">
           <div className="results-header">
-            <h3>Patient Vitals</h3>
+            <h3>
+              Patient Vitals
+              {isAutoListening && <span className="auto-badge">AUTO</span>}
+            </h3>
             {capturedData && (
               <button
                 className="download-button"
@@ -508,17 +654,34 @@ const DoctorDashboard = () => {
 
           <div className="search-section">
             <div className="search-container">
+              {/* Auto-listening indicator */}
+              {currentRoomId && (
+                <div className="auto-listening-indicator">
+                  <div
+                    className={`listening-dot ${
+                      isAutoListening ? "active" : ""
+                    }`}
+                  ></div>
+                  <span>
+                    {isAutoListening
+                      ? `Auto-monitoring Room ${currentRoomId}`
+                      : `Room ${currentRoomId} - Not monitoring`}
+                  </span>
+                </div>
+              )}
+
               <input
                 type="text"
                 className="search-input"
-                placeholder="Search by Room ID..."
-                value={searchQuery} // Only show searchQuery
+                placeholder="Search by Room ID (manual)..."
+                value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <button
                 className="search-button"
                 onClick={fetchCapturedData}
-                disabled={!searchQuery} // Only disable if searchQuery is empty
+                disabled={!searchQuery}
+                title="Manual search for historical data"
               >
                 🔍
               </button>
@@ -526,7 +689,7 @@ const DoctorDashboard = () => {
                 <button
                   className="fill-room-button"
                   onClick={() => setSearchQuery(currentRoomId)}
-                  title="Fill current room ID"
+                  title="Fill current room ID for manual search"
                 >
                   Use Current Room
                 </button>
@@ -545,11 +708,9 @@ const DoctorDashboard = () => {
                   <div className="data-card temperature-card spaced-card">
                     <h4>Temperature Data</h4>
                     <div className="data-value">
-                      {capturedData.temperature.formatted_value}
-                    </div>
-                    <div className="data-raw">
                       Raw: {capturedData.temperature.raw_text}
                     </div>
+                    <div className="data-raw"></div>
                     <div className="data-confidence">
                       Confidence: {capturedData.temperature.confidence}
                     </div>
@@ -559,11 +720,9 @@ const DoctorDashboard = () => {
                   <div className="data-card weight-card spaced-card">
                     <h4>Weight Data</h4>
                     <div className="data-value">
-                      {capturedData.weight.formatted_value}
-                    </div>
-                    <div className="data-raw">
                       Raw: {capturedData.weight.raw_text}
                     </div>
+                    <div className="data-raw"></div>
                     <div className="data-confidence">
                       Confidence: {capturedData.weight.confidence}
                     </div>
@@ -573,11 +732,9 @@ const DoctorDashboard = () => {
                   <div className="data-card glucose-card spaced-card">
                     <h4>Glucose Data</h4>
                     <div className="data-value">
-                      {capturedData.glucose.formatted_value}
-                    </div>
-                    <div className="data-raw">
                       Raw: {capturedData.glucose.raw_text}
                     </div>
+                    <div className="data-raw"></div>
                     <div className="data-confidence">
                       Confidence: {capturedData.glucose.confidence}
                     </div>
@@ -587,11 +744,9 @@ const DoctorDashboard = () => {
                   <div className="data-card blood-pressure-card spaced-card">
                     <h4>Blood Pressure</h4>
                     <div className="data-value">
-                      {capturedData.blood_pressure.formatted_value}
-                    </div>
-                    <div className="data-raw">
                       Raw: {capturedData.blood_pressure.raw_text}
                     </div>
+                    <div className="data-raw"></div>
                     <div className="data-confidence">
                       Confidence: {capturedData.blood_pressure.confidence}
                     </div>

@@ -54,60 +54,71 @@ const PatientDashboard = () => {
   const [city] = useState("CPT"); // Default to CPT, but can be dynamic
 
   const refreshDevices = useCallback(() => {
-  navigator.mediaDevices
-    .enumerateDevices()
-    .then((devices) => {
-      const videoDevices = devices.filter(
-        (device) => device.kind === "videoinput"
-      );
-      setCameraDevices(videoDevices);
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then((devices) => {
+        const videoDevices = devices.filter(
+          (device) => device.kind === "videoinput"
+        );
+        setCameraDevices(videoDevices);
 
-      const savedSettings = localStorage.getItem('patientCameraSettings');
-      
-      if (savedSettings) {
-        try {
-          const parsedSettings = JSON.parse(savedSettings);
-          const validSettings = {};
-          Object.keys(parsedSettings).forEach(type => {
-            const deviceId = parsedSettings[type];
-            const deviceExists = videoDevices.some(device => device.deviceId === deviceId);
-            if (deviceExists) {
-              validSettings[type] = deviceId;
-            }
-          });
-          setSelectedCameras(prev => ({ ...prev, ...validSettings }));
-        } catch (error) {
-          console.error('Error parsing saved settings:', error);
+        const savedSettings = localStorage.getItem("patientCameraSettings");
+
+        if (savedSettings) {
+          try {
+            const parsedSettings = JSON.parse(savedSettings);
+            const validSettings = {};
+            Object.keys(parsedSettings).forEach((type) => {
+              const deviceId = parsedSettings[type];
+              const deviceExists = videoDevices.some(
+                (device) => device.deviceId === deviceId
+              );
+              if (deviceExists) {
+                validSettings[type] = deviceId;
+              }
+            });
+            setSelectedCameras((prev) => ({ ...prev, ...validSettings }));
+          } catch (error) {
+            console.error("Error parsing saved settings:", error);
+            autoAssignCameras();
+          }
+        } else {
           autoAssignCameras();
         }
-      } else {
-        autoAssignCameras();
-      }
 
-      // Inline auto-assignment function
-      function autoAssignCameras() {
-        if (videoDevices.length > 0) {
-          const defaultAssignments = {};
-          const types = ["temperature", "weight", "blood_pressure", "glucose", "endoscope"];
-          
-          videoDevices.forEach((device, index) => {
-            if (types[index]) {
-              defaultAssignments[types[index]] = device.deviceId;
+        // Inline auto-assignment function
+        function autoAssignCameras() {
+          if (videoDevices.length > 0) {
+            const defaultAssignments = {};
+            const types = [
+              "temperature",
+              "weight",
+              "blood_pressure",
+              "glucose",
+              "endoscope",
+            ];
+
+            videoDevices.forEach((device, index) => {
+              if (types[index]) {
+                defaultAssignments[types[index]] = device.deviceId;
+              }
+            });
+
+            setSelectedCameras((prev) => ({ ...prev, ...defaultAssignments }));
+
+            try {
+              localStorage.setItem(
+                "patientCameraSettings",
+                JSON.stringify(defaultAssignments)
+              );
+            } catch (error) {
+              console.error("Error saving auto-assigned settings:", error);
             }
-          });
-          
-          setSelectedCameras(prev => ({ ...prev, ...defaultAssignments }));
-          
-          try {
-            localStorage.setItem('patientCameraSettings', JSON.stringify(defaultAssignments));
-          } catch (error) {
-            console.error('Error saving auto-assigned settings:', error);
           }
         }
-      }
-    })
-    .catch((error) => console.error("Error enumerating devices:", error));
-}, []); 
+      })
+      .catch((error) => console.error("Error enumerating devices:", error));
+  }, []);
 
   useEffect(() => {
     refreshDevices();
@@ -157,9 +168,8 @@ const PatientDashboard = () => {
 
         const data = await uploadResponse.json();
 
-        // FIXED: Add null safety for confidence property
+        // FIXED: Add null safety for confidence property = formatted_value: data.data?.formatted_value || "Processing...",
         const processedData = {
-          formatted_value: data.data?.formatted_value || "Processing...",
           raw_text: data.data?.raw_text || "No text detected",
           confidence: data.data?.confidence || 0, // Changed from "unknown" to 0
           ...data.data,
@@ -231,8 +241,7 @@ const PatientDashboard = () => {
       console.error("Error saving camera settings:", error);
     }
   };
-  
-  
+
   useEffect(() => {
     // Load saved camera settings from localStorage
     const savedCameraSettings = localStorage.getItem("patientCameraSettings");
@@ -554,10 +563,9 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Temperature Reading</h4>
                 <div className="result-value">
-                  {capturedData.temperature?.formatted_value || "N/A"}
+                  <p>Raw OCR: {capturedData.temperature?.raw_text || "N/A"}</p>
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.temperature?.raw_text || "N/A"}</p>
                   <p>
                     Confidence: {capturedData.temperature?.confidence || "N/A"}
                   </p>
@@ -577,10 +585,9 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Weight Reading</h4>
                 <div className="result-value">
-                  {capturedData.weight?.formatted_value || "N/A"}
+                  <p>Raw OCR: {capturedData.weight?.raw_text || "N/A"}</p>
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.weight?.raw_text || "N/A"}</p>
                   <p>Confidence: {capturedData.weight?.confidence || "N/A"}</p>
                 </div>
                 {capturedImages.weight && (
@@ -598,12 +605,10 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Blood Pressure</h4>
                 <div className="result-value">
-                  {capturedData.blood_pressure?.formatted_value || "N/A"}
+                  Raw OCR: {capturedData.blood_pressure?.raw_text || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p>
-                    Raw OCR: {capturedData.blood_pressure?.raw_text || "N/A"}
-                  </p>
+                  <p></p>
                   <p>
                     Confidence:{" "}
                     {capturedData.blood_pressure?.confidence || "N/A"}
@@ -624,10 +629,9 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Glucose</h4>
                 <div className="result-value">
-                  {capturedData.glucose?.formatted_value || "N/A"}
+                  <p>Raw OCR: {capturedData.glucose?.raw_text || "N/A"}</p>
                 </div>
                 <div className="result-meta">
-                  <p>Raw OCR: {capturedData.glucose?.raw_text || "N/A"}</p>
                   <p>Confidence: {capturedData.glucose?.confidence || "N/A"}</p>
                 </div>
                 {capturedImages.glucose && (
@@ -643,7 +647,7 @@ const PatientDashboard = () => {
             {/* Endoscope */}
             {capturedData.endoscope && (
               <div className="result-card">
-                <h4>Endoscope</h4>                
+                <h4>Endoscope</h4>
                 {capturedImages.endoscope && (
                   <img
                     src={capturedImages.endoscope}

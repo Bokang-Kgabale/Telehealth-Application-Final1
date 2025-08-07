@@ -67,10 +67,8 @@ function PatientLogin() {
       )}
       <header className="auth-header">
         <button className="back-button" onClick={() => navigate("/")}>Back</button>
-        <h1>Telehealth Patient Portal</h1>
-        <h2>Cape Town Location</h2>
+        <h1>Telehealth Patient Portal</h1>       
       </header>
-
       <div className="auth-form-container">
         <div className="patient-id-display">
           <h3>Your Temporary Patient ID</h3>
@@ -81,7 +79,7 @@ function PatientLogin() {
               sessionStorage.setItem('pendingPatientId', id);
             }}
           />
-          <p className="location-info">Location: Cape Town ({city})</p>
+          <p className="location-info"> Tele 1 ({city})</p>
         </div>
 
         <button 
