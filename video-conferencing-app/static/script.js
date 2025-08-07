@@ -119,6 +119,15 @@ const MAX_CONNECTION_TIME = 15000;
 let lastCredentialsFetchTime = 0;
 let iceServers = null;
 let isNegotiating = false; // Add this flag to prevent negotiation loops
+let playbackState = {
+  remoteVideoPlaying: false,
+  userHasInteracted: false,
+  playbackAttempts: 0
+};
+// Track user interaction for autoplay policy compliance
+document.addEventListener('click', () => {
+  playbackState.userHasInteracted = true;
+}, { once: true });
 
 // DOM elements
 const localVideo = document.getElementById("localVideo");
@@ -265,56 +274,274 @@ function updateConnectionStatus(message, isConnecting = true) {
   }
 }
 async function attemptRemoteVideoPlay() {
-  if (!remoteVideo || !remoteVideo.srcObject) return;
-
-  if (playbackAttempts >= MAX_PLAYBACK_ATTEMPTS) {
-    console.warn("Max playback attempts reached");
+  if (!remoteVideo || !remoteVideo.srcObject) {
+    console.warn('No remote video element or source available');
     return;
   }
 
-  playbackAttempts++;
+  // Prevent multiple simultaneous attempts
+  if (playbackState.remoteVideoPlaying) {
+    console.log('Remote video already playing or attempt in progress');
+    return;
+  }
+
+  const MAX_ATTEMPTS = 3;
+  if (playbackState.playbackAttempts >= MAX_ATTEMPTS) {
+    console.warn(`Max playback attempts (${MAX_ATTEMPTS}) reached`);
+    return;
+  }
+
+  playbackState.playbackAttempts++;
+  console.log(`Remote video play attempt ${playbackState.playbackAttempts}/${MAX_ATTEMPTS}`);
 
   try {
-    // Reset video element if needed
-    if (remoteVideo.error) {
-      const newVideo = remoteVideo.cloneNode();
-      remoteVideo.parentNode.replaceChild(newVideo, remoteVideo);
-      remoteVideo = newVideo;
-      remoteVideo.srcObject = remoteStream;
+    // Set essential attributes for modern browsers
+    remoteVideo.autoplay = true;
+    remoteVideo.playsInline = true; // Critical for iOS Safari
+    remoteVideo.controls = false;
+    
+    // Start with muted playback (always allowed by browsers)
+    remoteVideo.muted = true;
+    
+    // Wait for video metadata to be ready
+    if (remoteVideo.readyState < 1) {
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Metadata timeout')), 5000);
+        remoteVideo.addEventListener('loadedmetadata', () => {
+          clearTimeout(timeout);
+          resolve();
+        }, { once: true });
+      });
     }
 
-    remoteVideo.autoplay = true;
-    remoteVideo.playsInline = true;
-
-    // First try unmuted
-    remoteVideo.muted = false;
+    // Attempt muted playback first
     await remoteVideo.play();
-    console.log("Remote video playing successfully (unmuted)");
-    playbackAttempts = 0;
-    return;
-  } catch (unmutedError) {
-    console.warn("Unmuted play failed, trying muted:", unmutedError);
+    console.log('Remote video started playing (muted)');
+    playbackState.remoteVideoPlaying = true;
+    playbackState.playbackAttempts = 0;
 
-    try {
-      remoteVideo.muted = true;
-      await remoteVideo.play();
-      console.log("Remote video playing successfully (muted)");
-      playbackAttempts = 0;
-      return;
-    } catch (mutedError) {
-      console.error("Muted play failed:", mutedError);
+    // Try to unmute if user has interacted
+    if (playbackState.userHasInteracted) {
+      setTimeout(async () => {
+        try {
+          remoteVideo.muted = false;
+          console.log('Remote video unmuted successfully');
+        } catch (unmuteError) {
+          console.warn('Could not unmute remote video:', unmuteError);
+          // Show user control to enable audio
+          showUnmutePrompt();
+        }
+      }, 500);
+    } else {
+      // Show user that they need to interact to hear audio
+      showUnmutePrompt();
+    }
 
-      // Final fallback - recreate the stream reference
-      if (playbackAttempts < MAX_PLAYBACK_ATTEMPTS) {
-        setTimeout(() => {
-          const stream = remoteVideo.srcObject;
-          remoteVideo.srcObject = null;
-          setTimeout(() => {
-            remoteVideo.srcObject = stream;
-            attemptRemoteVideoPlay();
-          }, 100);
-        }, 500 * playbackAttempts); // Exponential backoff
+  } catch (error) {
+    console.error(`Remote video play attempt ${playbackState.playbackAttempts} failed:`, error);
+    playbackState.remoteVideoPlaying = false;
+
+    // Try different recovery strategies based on attempt number
+    if (playbackState.playbackAttempts < MAX_ATTEMPTS) {
+      const delay = Math.min(1000 * Math.pow(2, playbackState.playbackAttempts - 1), 5000);
+      console.log(`Retrying in ${delay}ms...`);
+      
+      setTimeout(async () => {
+        if (playbackState.playbackAttempts === 2) {
+          // Second attempt: try recreating the video element
+          await recreateVideoElement();
+        } else if (playbackState.playbackAttempts === 3) {
+          // Third attempt: reset the stream connection
+          await resetVideoStream();
+        }
+        attemptRemoteVideoPlay();
+      }, delay);
+    } else {
+      // All attempts failed - show manual play button
+      showManualPlayButton();
+    }
+  }
+}
+// Recreate video element (safer than cloneNode)
+async function recreateVideoElement() {
+  if (!remoteVideo || !remoteVideo.parentNode) return;
+  
+  console.log('Recreating remote video element...');
+  const parent = remoteVideo.parentNode;
+  const stream = remoteVideo.srcObject;
+  
+  // Create new video element with proper attributes
+  const newVideo = document.createElement('video');
+  newVideo.id = remoteVideo.id;
+  newVideo.className = remoteVideo.className;
+  newVideo.autoplay = true;
+  newVideo.playsInline = true;
+  newVideo.muted = true;
+  
+  // Copy styles
+  newVideo.style.cssText = remoteVideo.style.cssText;
+  
+  // Replace old element
+  parent.replaceChild(newVideo, remoteVideo);
+  
+  // Update global reference - IMPORTANT: update your global remoteVideo reference
+  const oldRemoteVideo = window.remoteVideo || document.getElementById("remoteVideo");
+  window.remoteVideo = newVideo;
+  
+  // Also update the module-level variable if it exists
+  if (typeof remoteVideo !== 'undefined') {
+    remoteVideo = newVideo;
+  }
+  
+  // Restore stream
+  if (stream) {
+    newVideo.srcObject = stream;
+  }
+  
+  return newVideo;
+}
+
+// Reset video stream connection
+async function resetVideoStream() {
+  console.log('Resetting video stream...');
+  
+  if (remoteVideo && remoteVideo.srcObject) {
+    const stream = remoteVideo.srcObject;
+    
+    // Temporarily disconnect and reconnect
+    remoteVideo.srcObject = null;
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Recreate MediaStream with existing tracks
+    const newStream = new MediaStream();
+    stream.getTracks().forEach(track => {
+      if (track.readyState === 'live') {
+        newStream.addTrack(track);
       }
+    });
+    
+    remoteVideo.srcObject = newStream;
+    remoteStream = newStream;
+  }
+}
+
+// Show unmute prompt to user
+function showUnmutePrompt() {
+  const existingPrompt = document.getElementById('unmute-prompt');
+  if (existingPrompt) return;
+  
+  const prompt = document.createElement('div');
+  prompt.id = 'unmute-prompt';
+  prompt.style.cssText = `
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    z-index: 1000;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    animation: pulse 2s infinite;
+    user-select: none;
+  `;
+  prompt.innerHTML = `🔇 Click to enable audio`;
+  
+  prompt.addEventListener('click', async () => {
+    try {
+      if (remoteVideo) {
+        remoteVideo.muted = false;
+        prompt.remove();
+        playbackState.userHasInteracted = true;
+        console.log('Audio manually enabled by user');
+      }
+    } catch (error) {
+      console.error('Manual unmute failed:', error);
+    }
+  });
+  
+  // Add to video container or body
+  const videoContainer = remoteVideo.parentElement;
+  if (videoContainer && getComputedStyle(videoContainer).position !== 'static') {
+    videoContainer.appendChild(prompt);
+  } else {
+    // Make video container relative if needed
+    if (videoContainer) {
+      videoContainer.style.position = 'relative';
+      videoContainer.appendChild(prompt);
+    } else {
+      document.body.appendChild(prompt);
+    }
+  }
+  
+  // Auto-remove after 10 seconds
+  setTimeout(() => {
+    if (prompt.parentNode) {
+      prompt.remove();
+    }
+  }, 10000);
+}
+
+// Show manual play button as last resort
+function showManualPlayButton() {
+  const existingButton = document.getElementById('manual-play-btn');
+  if (existingButton) return;
+  
+  const button = document.createElement('button');
+  button.id = 'manual-play-btn';
+  button.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    transition: all 0.3s ease;
+    user-select: none;
+  `;
+  button.innerHTML = `▶️ Click to Play Video`;
+  
+  // Add hover effect
+  button.addEventListener('mouseenter', () => {
+    button.style.background = '#0056b3';
+    button.style.transform = 'translate(-50%, -50%) scale(1.05)';
+  });
+  
+  button.addEventListener('mouseleave', () => {
+    button.style.background = '#007bff';
+    button.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+  
+  button.addEventListener('click', async () => {
+    playbackState.userHasInteracted = true;
+    playbackState.playbackAttempts = 0;
+    playbackState.remoteVideoPlaying = false;
+    button.remove();
+    console.log('Manual play button clicked, retrying video playback');
+    await attemptRemoteVideoPlay();
+  });
+  
+  // Add to video container
+  const videoContainer = remoteVideo.parentElement;
+  if (videoContainer && getComputedStyle(videoContainer).position !== 'static') {
+    videoContainer.appendChild(button);
+  } else {
+    if (videoContainer) {
+      videoContainer.style.position = 'relative';
+      videoContainer.appendChild(button);
+    } else {
+      document.body.appendChild(button);
     }
   }
 }
@@ -342,8 +569,52 @@ function updateConnectionQuality(quality) {
 function initializeVideoCall() {
   updateConnectionStatus("Ready to connect", false);
   setupUI();
-  // Test TURN server on initialization
-  testTurnServer();
+  initEnhancedVideoHandling(); // Add this line
+  
+  testTurnServer().catch((error) => {
+    console.warn("TURN server test failed, proceeding anyway:", error);
+  });
+}
+function initEnhancedVideoHandling() {
+  // Set up proper video element attributes
+  if (remoteVideo) {
+    remoteVideo.autoplay = true;
+    remoteVideo.playsInline = true;
+    remoteVideo.muted = true;
+    remoteVideo.controls = false;
+    
+    // Add error handling
+    remoteVideo.addEventListener('error', (e) => {
+      console.error('Remote video error:', e);
+      playbackState.remoteVideoPlaying = false;
+    });
+    
+    // Track when video actually starts playing
+    remoteVideo.addEventListener('playing', () => {
+      console.log('Remote video is now playing');
+      playbackState.remoteVideoPlaying = true;
+      
+      // Remove any manual controls
+      const manualButton = document.getElementById('manual-play-btn');
+      const unmutePrompt = document.getElementById('unmute-prompt');
+      if (manualButton) manualButton.remove();
+      if (unmutePrompt) unmutePrompt.remove();
+    });
+    
+    // Handle video pause/stall
+    remoteVideo.addEventListener('pause', () => {
+      if (playbackState.remoteVideoPlaying) {
+        console.log('Remote video paused unexpectedly');
+        playbackState.remoteVideoPlaying = false;
+      }
+    });
+    
+    // Handle video ended
+    remoteVideo.addEventListener('ended', () => {
+      console.log('Remote video ended');
+      playbackState.remoteVideoPlaying = false;
+    });
+  }
 }
 // Add this function definition (it's declared in the code but might be out of scope)
 async function testTurnServer() {
@@ -372,11 +643,52 @@ async function testTurnServer() {
 function initializeVideoCall() {
   updateConnectionStatus("Ready to connect", false);
   setupUI();
-
-  // Wrap TURN test in error handling
+  initEnhancedVideoHandling(); // Add this line
+  
   testTurnServer().catch((error) => {
     console.warn("TURN server test failed, proceeding anyway:", error);
   });
+}
+function initEnhancedVideoHandling() {
+  // Set up proper video element attributes
+  if (remoteVideo) {
+    remoteVideo.autoplay = true;
+    remoteVideo.playsInline = true;
+    remoteVideo.muted = true;
+    remoteVideo.controls = false;
+    
+    // Add error handling
+    remoteVideo.addEventListener('error', (e) => {
+      console.error('Remote video error:', e);
+      playbackState.remoteVideoPlaying = false;
+    });
+    
+    // Track when video actually starts playing
+    remoteVideo.addEventListener('playing', () => {
+      console.log('Remote video is now playing');
+      playbackState.remoteVideoPlaying = true;
+      
+      // Remove any manual controls
+      const manualButton = document.getElementById('manual-play-btn');
+      const unmutePrompt = document.getElementById('unmute-prompt');
+      if (manualButton) manualButton.remove();
+      if (unmutePrompt) unmutePrompt.remove();
+    });
+    
+    // Handle video pause/stall
+    remoteVideo.addEventListener('pause', () => {
+      if (playbackState.remoteVideoPlaying) {
+        console.log('Remote video paused unexpectedly');
+        playbackState.remoteVideoPlaying = false;
+      }
+    });
+    
+    // Handle video ended
+    remoteVideo.addEventListener('ended', () => {
+      console.log('Remote video ended');
+      playbackState.remoteVideoPlaying = false;
+    });
+  }
 }
 function setupUI() {
   const startCallWithMediaBtn = document.getElementById("startCallWithMedia");
@@ -516,7 +828,7 @@ function setupPeerConnectionListeners() {
 }
 
 function setupPeerConnectionListenersWithoutNegotiation() {
-  // Enhanced ontrack handler with better remote video handling
+  // ENHANCED ONTRACK HANDLER - REPLACE YOUR EXISTING ONE
   peerConnection.ontrack = (event) => {
     console.log(
       "Track received:",
@@ -546,12 +858,16 @@ function setupPeerConnectionListenersWithoutNegotiation() {
         videoTracks: stream.getVideoTracks().length,
       });
 
-      if (remoteVideo) {
+      if (remoteVideo && remoteVideo.srcObject !== stream) {
         remoteVideo.srcObject = stream;
         remoteStream = stream;
+        
+        // Reset playback state for new stream
+        playbackState.remoteVideoPlaying = false;
+        playbackState.playbackAttempts = 0;
 
-        // Force play with multiple attempts
-        attemptRemoteVideoPlay();
+        // Attempt playback with delay to ensure stream is ready
+        setTimeout(() => attemptRemoteVideoPlay(), 100);
       }
     } else {
       console.log("No streams in event, manually constructing stream");
@@ -566,23 +882,29 @@ function setupPeerConnectionListenersWithoutNegotiation() {
       const existingTracks = remoteStream.getTracks();
       const trackExists = existingTracks.some((t) => t.id === event.track.id);
 
-      if (!trackExists) {
+      if (!trackExists && event.track.readyState === 'live') {
         remoteStream.addTrack(event.track);
         console.log("Added track to remote stream. Stream now has:", {
           audioTracks: remoteStream.getAudioTracks().length,
           videoTracks: remoteStream.getVideoTracks().length,
         });
-      }
 
-      if (remoteVideo && remoteVideo.srcObject !== remoteStream) {
-        remoteVideo.srcObject = remoteStream;
-        attemptRemoteVideoPlay();
+        if (remoteVideo && remoteVideo.srcObject !== remoteStream) {
+          remoteVideo.srcObject = remoteStream;
+          
+          // Reset playback state for new stream
+          playbackState.remoteVideoPlaying = false;
+          playbackState.playbackAttempts = 0;
+          
+          setTimeout(() => attemptRemoteVideoPlay(), 100);
+        }
       }
     }
 
     updateConnectionQuality("good");
   };
 
+  // KEEP ALL YOUR OTHER EXISTING HANDLERS BELOW (don't change these)
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && roomId) {
       console.log("Local ICE candidate:", event.candidate.candidate);
@@ -614,6 +936,7 @@ function setupPeerConnectionListenersWithoutNegotiation() {
     }
   };
 
+  // Keep all your other existing handlers exactly as they are...
   peerConnection.oniceconnectionstatechange = () => {
     const state = peerConnection.iceConnectionState;
     console.log("ICE connection state:", state);
@@ -1533,6 +1856,20 @@ function toggleCamera() {
 async function hangUp() {
   clearConnectionTimer();
 
+  // ADD THESE LINES AT THE BEGINNING:
+  // Reset video playback state
+  playbackState.remoteVideoPlaying = false;
+  playbackState.playbackAttempts = 0;
+  playbackState.userHasInteracted = false;
+
+  // Remove any UI prompts
+  const manualButton = document.getElementById('manual-play-btn');
+  const unmutePrompt = document.getElementById('unmute-prompt');
+  if (manualButton) manualButton.remove();
+  if (unmutePrompt) unmutePrompt.remove();
+  // END OF NEW LINES
+
+  // KEEP ALL YOUR EXISTING HANGUP CODE BELOW:
   if (localStream) {
     localStream.getTracks().forEach((track) => track.stop());
     localStream = null;
@@ -1564,24 +1901,6 @@ async function hangUp() {
   restartAttempts = 0;
   isNegotiating = false;
 }
-
-// Add at the bottom of the file
-window.addEventListener(
-  "error",
-  (event) => {
-    if (
-      event.message.includes("blocked") ||
-      event.message.includes("Tracking Prevention")
-    ) {
-      console.warn("Resource blocked:", event);
-      if (connectionStatus) {
-        connectionStatus.textContent =
-          "Browser blocked required resources. Please disable tracking protection.";
-      }
-    }
-  },
-  true
-);
 
 if (
   navigator.userAgent.includes("Safari") &&
