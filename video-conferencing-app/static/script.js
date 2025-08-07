@@ -638,58 +638,6 @@ async function testTurnServer() {
     throw error; // Re-throw to handle in calling function
   }
 }
-
-// Then modify the initializeVideoCall function to handle potential errors:
-function initializeVideoCall() {
-  updateConnectionStatus("Ready to connect", false);
-  setupUI();
-  initEnhancedVideoHandling(); // Add this line
-  
-  testTurnServer().catch((error) => {
-    console.warn("TURN server test failed, proceeding anyway:", error);
-  });
-}
-function initEnhancedVideoHandling() {
-  // Set up proper video element attributes
-  if (remoteVideo) {
-    remoteVideo.autoplay = true;
-    remoteVideo.playsInline = true;
-    remoteVideo.muted = true;
-    remoteVideo.controls = false;
-    
-    // Add error handling
-    remoteVideo.addEventListener('error', (e) => {
-      console.error('Remote video error:', e);
-      playbackState.remoteVideoPlaying = false;
-    });
-    
-    // Track when video actually starts playing
-    remoteVideo.addEventListener('playing', () => {
-      console.log('Remote video is now playing');
-      playbackState.remoteVideoPlaying = true;
-      
-      // Remove any manual controls
-      const manualButton = document.getElementById('manual-play-btn');
-      const unmutePrompt = document.getElementById('unmute-prompt');
-      if (manualButton) manualButton.remove();
-      if (unmutePrompt) unmutePrompt.remove();
-    });
-    
-    // Handle video pause/stall
-    remoteVideo.addEventListener('pause', () => {
-      if (playbackState.remoteVideoPlaying) {
-        console.log('Remote video paused unexpectedly');
-        playbackState.remoteVideoPlaying = false;
-      }
-    });
-    
-    // Handle video ended
-    remoteVideo.addEventListener('ended', () => {
-      console.log('Remote video ended');
-      playbackState.remoteVideoPlaying = false;
-    });
-  }
-}
 function setupUI() {
   const startCallWithMediaBtn = document.getElementById("startCallWithMedia");
   if (startCallWithMediaBtn) {
@@ -1146,52 +1094,6 @@ async function restartCallerFlow() {
   } catch (error) {
     console.error("Failed to restart caller flow:", error);
   }
-}
-
-// Add this helper function for better remote video handling
-// Enhanced video playback handler
-async function attemptRemoteVideoPlay() {
-  if (!remoteVideo || !remoteVideo.srcObject) return;
-
-  // Reset video element if previous attempts failed
-  if (remoteVideo.error || remoteVideo.readyState === 4) {
-    const temp = remoteVideo.cloneNode();
-    remoteVideo.parentNode.replaceChild(temp, remoteVideo);
-    remoteVideo = temp;
-  }
-
-  // Try standard playback first
-  try {
-    remoteVideo.autoplay = true;
-    remoteVideo.playsInline = true;
-    await remoteVideo.play();
-    return;
-  } catch (err) {
-    console.warn("Standard play failed, trying muted:", err);
-  }
-
-  // Fallback to muted playback
-  try {
-    remoteVideo.muted = true;
-    await remoteVideo.play();
-    return;
-  } catch (mutedErr) {
-    console.error("Muted play failed:", mutedErr);
-  }
-
-  // Final fallback - recreate stream
-  setTimeout(() => {
-    if (remoteVideo.srcObject) {
-      const stream = remoteVideo.srcObject;
-      remoteVideo.srcObject = null;
-      setTimeout(() => {
-        remoteVideo.srcObject = stream;
-        remoteVideo
-          .play()
-          .catch((e) => console.error("Final play attempt failed:", e));
-      }, 100);
-    }
-  }, 500);
 }
 
 // Add stream health check function
