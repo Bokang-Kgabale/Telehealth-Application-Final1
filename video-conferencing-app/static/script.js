@@ -15,19 +15,19 @@ window.addEventListener("message", (event) => {
   }
 });
 // Add to your initialization code
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
-  
+window.addEventListener("error", (event) => {
+  console.error("Global error:", event.error);
+
   // Specific handling for WebRTC errors
-  if (event.error && event.error.name.includes('WebRTC')) {
+  if (event.error && event.error.name.includes("WebRTC")) {
     updateConnectionStatus("Connection error - attempting recovery");
     setTimeout(attemptConnectionRecovery, 1000);
   }
 });
 
 // Handle unhandled promise rejections
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled rejection:', event.reason);
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled rejection:", event.reason);
 });
 // Firebase configuration with better error handling
 fetch("/firebase-config")
@@ -122,12 +122,16 @@ let isNegotiating = false; // Add this flag to prevent negotiation loops
 let playbackState = {
   remoteVideoPlaying: false,
   userHasInteracted: false,
-  playbackAttempts: 0
+  playbackAttempts: 0,
 };
 // Track user interaction for autoplay policy compliance
-document.addEventListener('click', () => {
-  playbackState.userHasInteracted = true;
-}, { once: true });
+document.addEventListener(
+  "click",
+  () => {
+    playbackState.userHasInteracted = true;
+  },
+  { once: true }
+);
 
 // DOM elements
 const localVideo = document.getElementById("localVideo");
@@ -275,13 +279,13 @@ function updateConnectionStatus(message, isConnecting = true) {
 }
 async function attemptRemoteVideoPlay() {
   if (!remoteVideo || !remoteVideo.srcObject) {
-    console.warn('No remote video element or source available');
+    console.warn("No remote video element or source available");
     return;
   }
 
   // Prevent multiple simultaneous attempts
   if (playbackState.remoteVideoPlaying) {
-    console.log('Remote video already playing or attempt in progress');
+    console.log("Remote video already playing or attempt in progress");
     return;
   }
 
@@ -292,31 +296,40 @@ async function attemptRemoteVideoPlay() {
   }
 
   playbackState.playbackAttempts++;
-  console.log(`Remote video play attempt ${playbackState.playbackAttempts}/${MAX_ATTEMPTS}`);
+  console.log(
+    `Remote video play attempt ${playbackState.playbackAttempts}/${MAX_ATTEMPTS}`
+  );
 
   try {
     // Set essential attributes for modern browsers
     remoteVideo.autoplay = true;
     remoteVideo.playsInline = true; // Critical for iOS Safari
     remoteVideo.controls = false;
-    
+
     // Start with muted playback (always allowed by browsers)
     remoteVideo.muted = true;
-    
+
     // Wait for video metadata to be ready
     if (remoteVideo.readyState < 1) {
       await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Metadata timeout')), 10000);
-        remoteVideo.addEventListener('loadedmetadata', () => {
-          clearTimeout(timeout);
-          resolve();
-        }, { once: true });
+        const timeout = setTimeout(
+          () => reject(new Error("Metadata timeout")),
+          10000
+        );
+        remoteVideo.addEventListener(
+          "loadedmetadata",
+          () => {
+            clearTimeout(timeout);
+            resolve();
+          },
+          { once: true }
+        );
       });
     }
 
     // Attempt muted playback first
     await remoteVideo.play();
-    console.log('Remote video started playing (muted)');
+    console.log("Remote video started playing (muted)");
     playbackState.remoteVideoPlaying = true;
     playbackState.playbackAttempts = 0;
 
@@ -325,9 +338,9 @@ async function attemptRemoteVideoPlay() {
       setTimeout(async () => {
         try {
           remoteVideo.muted = false;
-          console.log('Remote video unmuted successfully');
+          console.log("Remote video unmuted successfully");
         } catch (unmuteError) {
-          console.warn('Could not unmute remote video:', unmuteError);
+          console.warn("Could not unmute remote video:", unmuteError);
           // Show user control to enable audio
           showUnmutePrompt();
         }
@@ -336,16 +349,21 @@ async function attemptRemoteVideoPlay() {
       // Show user that they need to interact to hear audio
       showUnmutePrompt();
     }
-
   } catch (error) {
-    console.error(`Remote video play attempt ${playbackState.playbackAttempts} failed:`, error);
+    console.error(
+      `Remote video play attempt ${playbackState.playbackAttempts} failed:`,
+      error
+    );
     playbackState.remoteVideoPlaying = false;
 
     // Try different recovery strategies based on attempt number
     if (playbackState.playbackAttempts < MAX_ATTEMPTS) {
-      const delay = Math.min(1000 * Math.pow(2, playbackState.playbackAttempts - 1), 5000);
+      const delay = Math.min(
+        1000 * Math.pow(2, playbackState.playbackAttempts - 1),
+        5000
+      );
       console.log(`Retrying in ${delay}ms...`);
-      
+
       setTimeout(async () => {
         if (playbackState.playbackAttempts === 2) {
           // Second attempt: try recreating the video element
@@ -365,62 +383,63 @@ async function attemptRemoteVideoPlay() {
 // Recreate video element (safer than cloneNode)
 async function recreateVideoElement() {
   if (!remoteVideo || !remoteVideo.parentNode) return;
-  
-  console.log('Recreating remote video element...');
+
+  console.log("Recreating remote video element...");
   const parent = remoteVideo.parentNode;
   const stream = remoteVideo.srcObject;
-  
+
   // Create new video element with proper attributes
-  const newVideo = document.createElement('video');
+  const newVideo = document.createElement("video");
   newVideo.id = remoteVideo.id;
   newVideo.className = remoteVideo.className;
   newVideo.autoplay = true;
   newVideo.playsInline = true;
   newVideo.muted = true;
-  
+
   // Copy styles
   newVideo.style.cssText = remoteVideo.style.cssText;
-  
+
   // Replace old element
   parent.replaceChild(newVideo, remoteVideo);
-  
+
   // Update global reference - IMPORTANT: update your global remoteVideo reference
-  const oldRemoteVideo = window.remoteVideo || document.getElementById("remoteVideo");
+  const oldRemoteVideo =
+    window.remoteVideo || document.getElementById("remoteVideo");
   window.remoteVideo = newVideo;
-  
+
   // Also update the module-level variable if it exists
-  if (typeof remoteVideo !== 'undefined') {
+  if (typeof remoteVideo !== "undefined") {
     remoteVideo = newVideo;
   }
-  
+
   // Restore stream
   if (stream) {
     newVideo.srcObject = stream;
   }
-  
+
   return newVideo;
 }
 
 // Reset video stream connection
 async function resetVideoStream() {
-  console.log('Resetting video stream...');
-  
+  console.log("Resetting video stream...");
+
   if (remoteVideo && remoteVideo.srcObject) {
     const stream = remoteVideo.srcObject;
-    
+
     // Temporarily disconnect and reconnect
     remoteVideo.srcObject = null;
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Recreate MediaStream with existing tracks
     const newStream = new MediaStream();
-    stream.getTracks().forEach(track => {
-      if (track.readyState === 'live') {
+    stream.getTracks().forEach((track) => {
+      if (track.readyState === "live") {
         newStream.addTrack(track);
       }
     });
-    
+
     remoteVideo.srcObject = newStream;
     remoteStream = newStream;
   }
@@ -428,11 +447,11 @@ async function resetVideoStream() {
 
 // Show unmute prompt to user
 function showUnmutePrompt() {
-  const existingPrompt = document.getElementById('unmute-prompt');
+  const existingPrompt = document.getElementById("unmute-prompt");
   if (existingPrompt) return;
-  
-  const prompt = document.createElement('div');
-  prompt.id = 'unmute-prompt';
+
+  const prompt = document.createElement("div");
+  prompt.id = "unmute-prompt";
   prompt.style.cssText = `
     position: absolute;
     top: 10px;
@@ -449,34 +468,37 @@ function showUnmutePrompt() {
     user-select: none;
   `;
   prompt.innerHTML = `🔇 Click to enable audio`;
-  
-  prompt.addEventListener('click', async () => {
+
+  prompt.addEventListener("click", async () => {
     try {
       if (remoteVideo) {
         remoteVideo.muted = false;
         prompt.remove();
         playbackState.userHasInteracted = true;
-        console.log('Audio manually enabled by user');
+        console.log("Audio manually enabled by user");
       }
     } catch (error) {
-      console.error('Manual unmute failed:', error);
+      console.error("Manual unmute failed:", error);
     }
   });
-  
+
   // Add to video container or body
   const videoContainer = remoteVideo.parentElement;
-  if (videoContainer && getComputedStyle(videoContainer).position !== 'static') {
+  if (
+    videoContainer &&
+    getComputedStyle(videoContainer).position !== "static"
+  ) {
     videoContainer.appendChild(prompt);
   } else {
     // Make video container relative if needed
     if (videoContainer) {
-      videoContainer.style.position = 'relative';
+      videoContainer.style.position = "relative";
       videoContainer.appendChild(prompt);
     } else {
       document.body.appendChild(prompt);
     }
   }
-  
+
   // Auto-remove after 10 seconds
   setTimeout(() => {
     if (prompt.parentNode) {
@@ -487,11 +509,11 @@ function showUnmutePrompt() {
 
 // Show manual play button as last resort
 function showManualPlayButton() {
-  const existingButton = document.getElementById('manual-play-btn');
+  const existingButton = document.getElementById("manual-play-btn");
   if (existingButton) return;
-  
-  const button = document.createElement('button');
-  button.id = 'manual-play-btn';
+
+  const button = document.createElement("button");
+  button.id = "manual-play-btn";
   button.style.cssText = `
     position: absolute;
     top: 50%;
@@ -511,34 +533,37 @@ function showManualPlayButton() {
     user-select: none;
   `;
   button.innerHTML = `▶️ Click to Play Video`;
-  
+
   // Add hover effect
-  button.addEventListener('mouseenter', () => {
-    button.style.background = '#0056b3';
-    button.style.transform = 'translate(-50%, -50%) scale(1.05)';
+  button.addEventListener("mouseenter", () => {
+    button.style.background = "#0056b3";
+    button.style.transform = "translate(-50%, -50%) scale(1.05)";
   });
-  
-  button.addEventListener('mouseleave', () => {
-    button.style.background = '#007bff';
-    button.style.transform = 'translate(-50%, -50%) scale(1)';
+
+  button.addEventListener("mouseleave", () => {
+    button.style.background = "#007bff";
+    button.style.transform = "translate(-50%, -50%) scale(1)";
   });
-  
-  button.addEventListener('click', async () => {
+
+  button.addEventListener("click", async () => {
     playbackState.userHasInteracted = true;
     playbackState.playbackAttempts = 0;
     playbackState.remoteVideoPlaying = false;
     button.remove();
-    console.log('Manual play button clicked, retrying video playback');
+    console.log("Manual play button clicked, retrying video playback");
     await attemptRemoteVideoPlay();
   });
-  
+
   // Add to video container
   const videoContainer = remoteVideo.parentElement;
-  if (videoContainer && getComputedStyle(videoContainer).position !== 'static') {
+  if (
+    videoContainer &&
+    getComputedStyle(videoContainer).position !== "static"
+  ) {
     videoContainer.appendChild(button);
   } else {
     if (videoContainer) {
-      videoContainer.style.position = 'relative';
+      videoContainer.style.position = "relative";
       videoContainer.appendChild(button);
     } else {
       document.body.appendChild(button);
@@ -570,7 +595,7 @@ function initializeVideoCall() {
   updateConnectionStatus("Ready to connect", false);
   setupUI();
   initEnhancedVideoHandling(); // Add this line
-  
+
   testTurnServer().catch((error) => {
     console.warn("TURN server test failed, proceeding anyway:", error);
   });
@@ -582,36 +607,36 @@ function initEnhancedVideoHandling() {
     remoteVideo.playsInline = true;
     remoteVideo.muted = true;
     remoteVideo.controls = false;
-    
+
     // Add error handling
-    remoteVideo.addEventListener('error', (e) => {
-      console.error('Remote video error:', e);
+    remoteVideo.addEventListener("error", (e) => {
+      console.error("Remote video error:", e);
       playbackState.remoteVideoPlaying = false;
     });
-    
+
     // Track when video actually starts playing
-    remoteVideo.addEventListener('playing', () => {
-      console.log('Remote video is now playing');
+    remoteVideo.addEventListener("playing", () => {
+      console.log("Remote video is now playing");
       playbackState.remoteVideoPlaying = true;
-      
+
       // Remove any manual controls
-      const manualButton = document.getElementById('manual-play-btn');
-      const unmutePrompt = document.getElementById('unmute-prompt');
+      const manualButton = document.getElementById("manual-play-btn");
+      const unmutePrompt = document.getElementById("unmute-prompt");
       if (manualButton) manualButton.remove();
       if (unmutePrompt) unmutePrompt.remove();
     });
-    
+
     // Handle video pause/stall
-    remoteVideo.addEventListener('pause', () => {
+    remoteVideo.addEventListener("pause", () => {
       if (playbackState.remoteVideoPlaying) {
-        console.log('Remote video paused unexpectedly');
+        console.log("Remote video paused unexpectedly");
         playbackState.remoteVideoPlaying = false;
       }
     });
-    
+
     // Handle video ended
-    remoteVideo.addEventListener('ended', () => {
-      console.log('Remote video ended');
+    remoteVideo.addEventListener("ended", () => {
+      console.log("Remote video ended");
       playbackState.remoteVideoPlaying = false;
     });
   }
@@ -809,7 +834,7 @@ function setupPeerConnectionListenersWithoutNegotiation() {
       if (remoteVideo && remoteVideo.srcObject !== stream) {
         remoteVideo.srcObject = stream;
         remoteStream = stream;
-        
+
         // Reset playback state for new stream
         playbackState.remoteVideoPlaying = false;
         playbackState.playbackAttempts = 0;
@@ -830,7 +855,7 @@ function setupPeerConnectionListenersWithoutNegotiation() {
       const existingTracks = remoteStream.getTracks();
       const trackExists = existingTracks.some((t) => t.id === event.track.id);
 
-      if (!trackExists && event.track.readyState === 'live') {
+      if (!trackExists && event.track.readyState === "live") {
         remoteStream.addTrack(event.track);
         console.log("Added track to remote stream. Stream now has:", {
           audioTracks: remoteStream.getAudioTracks().length,
@@ -839,11 +864,11 @@ function setupPeerConnectionListenersWithoutNegotiation() {
 
         if (remoteVideo && remoteVideo.srcObject !== remoteStream) {
           remoteVideo.srcObject = remoteStream;
-          
+
           // Reset playback state for new stream
           playbackState.remoteVideoPlaying = false;
           playbackState.playbackAttempts = 0;
-          
+
           setTimeout(() => attemptRemoteVideoPlay(), 100);
         }
       }
@@ -960,6 +985,11 @@ function setupPeerConnectionListenersWithoutNegotiation() {
 
     if (peerConnection.signalingState === "stable") {
       isNegotiating = false;
+      if (peerConnection && peerConnection.iceConnectionState) {
+        // safe to read iceConnectionState here
+      } else {
+        console.warn("peerConnection or iceConnectionState is not available");
+      }
 
       // Validate connection state
       if (peerConnection.iceConnectionState !== "connected") {
@@ -1765,8 +1795,8 @@ async function hangUp() {
   playbackState.userHasInteracted = false;
 
   // Remove any UI prompts
-  const manualButton = document.getElementById('manual-play-btn');
-  const unmutePrompt = document.getElementById('unmute-prompt');
+  const manualButton = document.getElementById("manual-play-btn");
+  const unmutePrompt = document.getElementById("unmute-prompt");
   if (manualButton) manualButton.remove();
   if (unmutePrompt) unmutePrompt.remove();
   // END OF NEW LINES
