@@ -906,7 +906,7 @@ function setupPeerConnectionListenersWithoutNegotiation() {
           } else {
             console.warn("Connected but no remote tracks received yet");
           }
-        }, 2000);
+        }, 5000); // Wait 5 seconds to allow media to start flowing
         break;
       case "checking":
         statusMessage = "Connecting...";
@@ -968,7 +968,7 @@ function setupPeerConnectionListenersWithoutNegotiation() {
           if (peerConnection.iceConnectionState !== "connected") {
             attemptConnectionRecovery();
           }
-        }, 2000);
+        }, 5000);
       }
     }
   };
@@ -1301,7 +1301,7 @@ async function attemptConnectionRecovery() {
       if (restartAttempts < MAX_RESTART_ATTEMPTS) {
         attemptConnectionRecovery();
       }
-    }, 2000);
+    }, 5000);
   }
 }
 
