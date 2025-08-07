@@ -9,11 +9,6 @@ window.addEventListener('message', (event) => {
   if (!allowedOrigins.includes(event.origin)) return;
   
   if (event.data.type === "JOIN_ROOM" && event.data.roomId) {
-    if(event.data.cameraId) {
-      preferredWebcamId = event.data.cameraId;
-      console.log('Setting preferred webcam ID from message:', preferredWebcamId);
-    }
-
     joinRoom(event.data.roomId).catch(error => {
       console.error('Failed to join room from message:', error);
     });
@@ -88,7 +83,6 @@ fetch("/firebase-config")
   });
 
 // Global variables
-let preferredWebcamId = null; // Store preferred webcam ID from message
 let db;
 let localStream;
 let remoteStream = new MediaStream();
@@ -300,7 +294,7 @@ function toggleMic() {
 
 async function openUserMedia() {
   try {
-    const constraints = {
+    localStream = await navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 1280 },
         height: { ideal: 720 },
@@ -311,12 +305,7 @@ async function openUserMedia() {
         noiseSuppression: true,
         autoGainControl: true
       }
-    };
-    if (preferredWebcamId) {
-      constraints.video.deviceId = { exact: preferredWebcamId };
-      console.log('Using preferred webcam ID:', preferredWebcamId);
-    }
-    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    });
     
     if (localVideo) {
       localVideo.srcObject = localStream;
@@ -330,30 +319,11 @@ async function openUserMedia() {
     updateConnectionStatus("Ready to connect", false);
 
   } catch (error) {
-    // If specific camera fails, try without deviceId constraint
-    if (preferredWebcamId && error.name === 'OverconstrainedError') {
-      console.warn('Preferred webcam failed, falling back to default');
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 }
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-      } catch (fallbackError) {
-        console.error("Fallback media access error:", fallbackError);
-        throw fallbackError;
-      }
-    } else {
-      console.error("Media access error:", error);
-      throw error;
-    }
+    console.error("Media access error:", error);
+    updateConnectionStatus("Media access failed");
+    alert(
+      "Unable to access camera and microphone. Please allow permissions and try again."
+    );
   }
 }
 async function startCallWithMedia() {
@@ -374,21 +344,20 @@ async function startCallWithMedia() {
 }
 
 async function createPeerConnection() {
-  if (!iceServers?.iceServers?.length) {
+  if (!iceServers || !iceServers.iceServers || iceServers.iceServers.length === 0) {
     await ensureFreshCredentials();
   }
 
   // More aggressive ICE configuration for problematic networks
-  const config = {
+  const pc = new RTCPeerConnection({
     iceServers: iceServers.iceServers || iceServers,
+    iceTransportPolicy: "relay", // Allow both STUN and TURN
     bundlePolicy: "max-bundle",
     rtcpMuxPolicy: "require",
     iceCandidatePoolSize: 10,
     // Add additional configuration for better connectivity
     iceGatheringPolicy: "gather-continually"
-  };
-
-  const pc = new RTCPeerConnection(config);
+  });
 
   // Add tracks to peer connection in consistent order (audio first, then video)
   if (localStream) {
@@ -1108,8 +1077,7 @@ async function startVideoCall() {
     }
 
     peerConnection = await createPeerConnection();
-    setupPeerConnectionListenersWithoutNegotiation();
-    
+    if (!peerConnection) throw new Error("Failed to create peer connection");
     
     // Setup listeners but delay negotiation handler
     setupPeerConnectionListenersWithoutNegotiation();
@@ -1170,7 +1138,6 @@ async function startVideoCall() {
           remoteDescriptionSet = true;
         } catch (error) {
           console.error('Failed to set remote description:', error);
-          updateConnectionStatus("Failed to set remote description");
         }
       }
     });
@@ -1284,130 +1251,69 @@ async function joinRoom(roomIdInput) {
 }
 
 async function setupMediaStream() {
-  if (localStream) {
-    console.log('Local stream already exists, skipping setup');
-    return;
-  }
-
-  const constraints = {
-    video: {
-      width: { ideal: 640, max: 1280 },
-      height: { ideal: 480, max: 720 },
-      frameRate: { ideal: 15, max: 30 }
-    },
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
-    }
-  };
-
-  if (preferredWebcamId) {
-    constraints.video.deviceId = { exact: preferredWebcamId };
-  }
-
-  try {
-    // Add timeout to prevent hanging
-    const mediaPromise = navigator.mediaDevices.getUserMedia(constraints);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Media access timeout')), 10000)
-    );
-
-    localStream = await Promise.race([mediaPromise, timeoutPromise]);
-    
-    if (localVideo) {
-      localVideo.srcObject = localStream;
-      localVideo.muted = true; // Prevent feedback
-      await localVideo.play().catch(e => console.warn('Local video play failed:', e));
-    }
-  } catch (error) {
-    console.error('Media access failed:', error);
-    
-    // Try fallback without specific camera
-    if (preferredWebcamId && error.name === 'OverconstrainedError') {
-      try {
-        delete constraints.video.deviceId;
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (localVideo) {
-          localVideo.srcObject = localStream;
-          localVideo.muted = true;
-          await localVideo.play().catch(e => console.warn('Local video play failed:', e));
-        }
-        return;
-      } catch (fallbackError) {
-        console.error('Camera fallback failed:', fallbackError);
-      }
-    }
-    
-    // Try audio-only as last resort
+  if (!localStream) {
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      // Use more conservative constraints to avoid timeout
+      const constraints = {
+        video: {
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+          frameRate: { ideal: 15, max: 30 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      };
+
+      // Add timeout to media access
+      const mediaPromise = navigator.mediaDevices.getUserMedia(constraints);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Media access timeout')), 10000)
+      );
+
+      localStream = await Promise.race([mediaPromise, timeoutPromise]);
+      
       if (localVideo) {
         localVideo.srcObject = localStream;
+        try {
+          await localVideo.play();
+        } catch (e) {
+          console.warn('Local video play failed:', e);
+          // Try to play with muted attribute
+          localVideo.muted = true;
+          await localVideo.play().catch(e => console.warn('Muted play also failed:', e));
+        }
       }
-      updateConnectionStatus("Audio-only mode (camera unavailable)");
-    } catch (audioError) {
-      console.error('Audio-only fallback failed:', audioError);
-      throw new Error('Unable to access any media devices');
+    } catch (error) {
+      console.error('Failed to get media stream:', error);
+      
+      // Try fallback with audio only
+      if (error.message !== 'Media access timeout') {
+        try {
+          console.log('Attempting audio-only fallback...');
+          localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true, 
+            video: false 
+          });
+          
+          if (localVideo) {
+            localVideo.srcObject = localStream;
+          }
+          
+          updateConnectionStatus("Audio-only mode (camera unavailable)");
+        } catch (fallbackError) {
+          console.error('Audio fallback also failed:', fallbackError);
+          throw new Error('Unable to access any media devices');
+        }
+      } else {
+        throw error;
+      }
     }
   }
 }
 
-async function switchToWebcam(cameraId) {
-  if (!cameraId) return;
-  
-  preferredWebcamId = cameraId;
-  console.log('Switching to webcam:', cameraId);
-  
-  try {
-    // Stop current video tracks
-    if (localStream) {
-      const videoTracks = localStream.getVideoTracks();
-      videoTracks.forEach(track => {
-        track.stop();
-        localStream.removeTrack(track);
-      });
-    }
-    
-    // Get new video stream with specific camera
-    const newVideoStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        deviceId: { exact: cameraId },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30 }
-      }
-    });
-    
-    const newVideoTrack = newVideoStream.getVideoTracks()[0];
-    
-    if (localStream) {
-      localStream.addTrack(newVideoTrack);
-    } else {
-      localStream = newVideoStream;
-    }
-    
-    // Update local video element
-    if (localVideo) {
-      localVideo.srcObject = localStream;
-    }
-    
-    // Update peer connection sender if active
-    if (peerConnection) {
-      const videoSender = peerConnection.getSenders().find(sender => 
-        sender.track && sender.track.kind === 'video'
-      );
-      
-      if (videoSender) {
-        await videoSender.replaceTrack(newVideoTrack);
-        console.log('Replaced video track in peer connection');
-      }
-    }
-    
-  } catch (error) {
-    console.error('Failed to switch webcam:', error);
-  }
-}
 function handleIncomingIceCandidate(candidate) {
   if (remoteDescriptionSet && peerConnection.signalingState === "stable") {
     peerConnection
