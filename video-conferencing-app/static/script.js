@@ -114,7 +114,7 @@ let calleeCandidatesCollection;
 let playbackAttempts = 0;
 const MAX_PLAYBACK_ATTEMPTS = 3;
 let restartAttempts = 0;
-const MAX_RESTART_ATTEMPTS = 3;
+const MAX_RESTART_ATTEMPTS = 5;
 const MAX_CONNECTION_TIME = 15000;
 let lastCredentialsFetchTime = 0;
 let iceServers = null;
@@ -306,7 +306,7 @@ async function attemptRemoteVideoPlay() {
     // Wait for video metadata to be ready
     if (remoteVideo.readyState < 1) {
       await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Metadata timeout')), 5000);
+        const timeout = setTimeout(() => reject(new Error('Metadata timeout')), 10000);
         remoteVideo.addEventListener('loadedmetadata', () => {
           clearTimeout(timeout);
           resolve();
