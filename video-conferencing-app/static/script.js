@@ -191,26 +191,43 @@ async function ensureFreshCredentials() {
   }
 }
 
-// Test TURN server connectivity
-async function testTurnServer() {
-  try {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { 
-          urls: 'turn:global.relay.metered.ca:80', 
-          username: '2506751c38ffc2c7eaeccab9', 
-          credential: 'Hnz1SG7ezaCS6Jtg' 
-        }
-      ]
-    });
-    pc.createDataChannel('test');
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    console.log('TURN test successful');
-    pc.close();
-  } catch (error) {
-    console.error('TURN test failed:', error);
-  }
+// Improved ICE configuration
+const pcConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { 
+      urls: "turn:global.relay.metered.ca:80",
+      username: "2506751c38ffc2c7eaeccab9",
+      credential: "Hnz1SG7ezaCS6Jtg" 
+    },
+    // Additional fallback servers
+  ],
+  iceTransportPolicy: "all", // Try both relay and non-relay candidates
+  iceCandidatePoolSize: 5, // Reduced from 10 to speed up gathering
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require"
+};
+
+// Enhanced timeout handling
+function startConnectionTimer() {
+  clearConnectionTimer();
+  
+  // Dynamic timeout based on network conditions
+  const baseTimeout = navigator.connection?.effectiveType === 'cellular' ? 25000 : 15000;
+  
+  connectionTimer = setTimeout(() => {
+    const state = peerConnection?.iceConnectionState;
+    if (["new", "checking", "disconnected"].includes(state)) {
+      console.log(`Proactive restart in ${state} state`);
+      
+      // Different recovery based on failure stage
+      if (state === "new") {
+        handleEarlyStageFailure();
+      } else {
+        attemptConnectionRecovery();
+      }
+    }
+  }, baseTimeout);
 }
 
 function updateConnectionStatus(message, isConnecting = true) {
@@ -553,65 +570,60 @@ function setupPeerConnectionListenersWithoutNegotiation() {
 
 function addNegotiationHandler() {
 
-  // FIXED: Prevent negotiation loops and handle InvalidAccessError
-  peerConnection.onnegotiationneeded = async () => {
-    console.log('Negotiation needed');
-    
-    // Prevent negotiation loops
-    if (isNegotiating) {
-      console.log('Already negotiating, skipping...');
-      return;
-    }
-    
-    if (!isCaller || peerConnection.signalingState !== "stable") {
-      console.log('Skipping negotiation - not caller or signaling not stable');
-      return;
+// Enhanced negotiation handler
+let negotiationQueue = [];
+let isProcessingQueue = false;
+
+peerConnection.onnegotiationneeded = async () => {
+  if (isNegotiating) {
+    console.log('Negotiation already in progress, queuing request');
+    negotiationQueue.push(true);
+    return;
+  }
+
+  isNegotiating = true;
+  
+  try {
+    console.log('Starting negotiation');
+    const offer = await peerConnection.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true,
+      iceRestart: false // Only restart if explicitly needed
+    });
+
+    // Validate offer before proceeding
+    if (!offer.sdp || offer.sdp.indexOf('m=') === -1) {
+      throw new Error('Invalid offer generated');
     }
 
-    try {
-      isNegotiating = true;
-      console.log('Creating new offer...');
-      
-      // Use more specific offer options to prevent m-line issues
-      const offer = await peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-        voiceActivityDetection: false
+    await peerConnection.setLocalDescription(offer);
+
+    if (roomRef) {
+      await roomRef.update({
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }
       });
-
-      // Check if we're still in stable state before setting local description
-      if (peerConnection.signalingState !== "stable") {
-        console.log('Signaling state changed during offer creation, aborting');
-        isNegotiating = false;
-        return;
-      }
-
-      await peerConnection.setLocalDescription(offer);
-
-      if (roomRef) {
-        console.log('Updating room with new offer...');
-        await roomRef.update({
-          offer: {
-            type: offer.type,
-            sdp: offer.sdp,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Negotiation error:', error);
-      isNegotiating = false;
-      
-      if (error.toString().includes('InvalidAccessError') || 
-          error.toString().includes("order of m-lines")) {
-        console.warn('Media line mismatch detected - attempting recovery...');
-        // Delay recovery to avoid immediate re-triggering
-        setTimeout(() => {
-          handleMediaLineMismatch();
-        }, 1000);
-      }
     }
-  };
+  } catch (error) {
+    console.error('Negotiation failed:', error);
+    
+    // Specific handling for common errors
+    if (error.toString().includes('InvalidAccessError')) {
+      await handleMediaLineMismatch();
+    }
+  } finally {
+    isNegotiating = false;
+    
+    // Process queued negotiations
+    if (negotiationQueue.length > 0) {
+      negotiationQueue = [];
+      setTimeout(() => peerConnection.onnegotiationneeded(), 1000);
+    }
+  }
+};
 }
 
 // FIXED: Better error handling for media line mismatch
@@ -680,53 +692,47 @@ async function restartCallerFlow() {
 }
 
 // Add this helper function for better remote video handling
+// Enhanced video playback handler
 async function attemptRemoteVideoPlay() {
   if (!remoteVideo || !remoteVideo.srcObject) return;
-  
+
+  // Reset video element if previous attempts failed
+  if (remoteVideo.error || remoteVideo.readyState === 4) {
+    const temp = remoteVideo.cloneNode();
+    remoteVideo.parentNode.replaceChild(temp, remoteVideo);
+    remoteVideo = temp;
+  }
+
+  // Try standard playback first
   try {
-    // Set video properties for better playback
     remoteVideo.autoplay = true;
     remoteVideo.playsInline = true;
-    
-    console.log('Attempting to play remote video...');
     await remoteVideo.play();
-    console.log('Remote video playing successfully');
-    
-    // Verify the video is actually displaying
-    setTimeout(() => {
-      if (remoteVideo.videoWidth > 0 && remoteVideo.videoHeight > 0) {
-        console.log('Remote video dimensions:', remoteVideo.videoWidth, 'x', remoteVideo.videoHeight);
-        updateConnectionStatus("Connected - Video active", false);
-      } else {
-        console.warn('Remote video has no dimensions, checking stream...');
-        checkRemoteStreamHealth();
-      }
-    }, 1000);
-    
-  } catch (error) {
-    console.warn('Remote video play failed:', error);
-    
-    // Try different approaches
-    try {
-      remoteVideo.muted = true;
-      await remoteVideo.play();
-      console.log('Remote video playing with muted attribute');
-    } catch (mutedError) {
-      console.error('Even muted play failed:', mutedError);
-      
-      // Last resort: try to reload the stream
-      setTimeout(() => {
-        if (remoteVideo.srcObject) {
-          const currentStream = remoteVideo.srcObject;
-          remoteVideo.srcObject = null;
-          setTimeout(() => {
-            remoteVideo.srcObject = currentStream;
-            remoteVideo.play().catch(e => console.error('Stream reload failed:', e));
-          }, 100);
-        }
-      }, 500);
-    }
+    return;
+  } catch (err) {
+    console.warn('Standard play failed, trying muted:', err);
   }
+
+  // Fallback to muted playback
+  try {
+    remoteVideo.muted = true;
+    await remoteVideo.play();
+    return;
+  } catch (mutedErr) {
+    console.error('Muted play failed:', mutedErr);
+  }
+
+  // Final fallback - recreate stream
+  setTimeout(() => {
+    if (remoteVideo.srcObject) {
+      const stream = remoteVideo.srcObject;
+      remoteVideo.srcObject = null;
+      setTimeout(() => {
+        remoteVideo.srcObject = stream;
+        remoteVideo.play().catch(e => console.error('Final play attempt failed:', e));
+      }, 100);
+    }
+  }, 500);
 }
 
 // Add stream health check function
