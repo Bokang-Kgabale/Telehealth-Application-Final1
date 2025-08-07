@@ -33,6 +33,7 @@ const PatientDashboard = () => {
     blood_pressure: "",
     glucose: "",
     endoscope: "",
+    webcam: "",
   });
   const [timer, setTimer] = useState(15);
   const [cameraReady, setCameraReady] = useState(false);
@@ -51,7 +52,7 @@ const PatientDashboard = () => {
   const [currentMessage, setCurrentMessage] = useState(null);
   const [assignedRoom, setAssignedRoom] = useState(null);
   const iframeRef = useRef(null);
-  const [city] = useState("CPT"); // Default to CPT, but can be dynamic
+  const [city] = useState("BFN"); // Default to BFN, but can be dynamic
 
   const refreshDevices = useCallback(() => {
     navigator.mediaDevices
@@ -96,6 +97,7 @@ const PatientDashboard = () => {
               "blood_pressure",
               "glucose",
               "endoscope",
+              "webcam",
             ];
 
             videoDevices.forEach((device, index) => {
@@ -289,6 +291,7 @@ const PatientDashboard = () => {
                 {
                   type: "JOIN_ROOM",
                   roomId: data.assignedRoom,
+                  cameraId: selectedCameras.webcam,
                 },
                 "https://telehealth-application.onrender.com"
               ); // Match iframe origin
@@ -467,6 +470,10 @@ const PatientDashboard = () => {
                 <strong>Endoscope:</strong>{" "}
                 {getCameraName(selectedCameras.endoscope)}
               </p>
+              <p>
+                <strong>Webcam:</strong>{""}
+                {getCameraName(selectedCameras.webcam)}
+              </p>
             </div>
             <div className="camera-count">
               <p>{cameraDevices.length} camera(s) detected</p>
@@ -563,7 +570,7 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Temperature Reading</h4>
                 <div className="result-value">
-                  <p>Raw OCR: {capturedData.temperature?.raw_text || "N/A"}</p>
+                  <p>{capturedData.temperature?.raw_text || "N/A"}</p>
                 </div>
                 <div className="result-meta">
                   <p>
@@ -585,7 +592,7 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Weight Reading</h4>
                 <div className="result-value">
-                  <p>Raw OCR: {capturedData.weight?.raw_text || "N/A"}</p>
+                  <p>{capturedData.weight?.raw_text || "N/A"}</p>
                 </div>
                 <div className="result-meta">
                   <p>Confidence: {capturedData.weight?.confidence || "N/A"}</p>
@@ -605,7 +612,7 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Blood Pressure</h4>
                 <div className="result-value">
-                  Raw OCR: {capturedData.blood_pressure?.raw_text || "N/A"}
+                  {capturedData.blood_pressure?.raw_text || "N/A"}
                 </div>
                 <div className="result-meta">
                   <p></p>
@@ -629,7 +636,7 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Glucose</h4>
                 <div className="result-value">
-                  <p>Raw OCR: {capturedData.glucose?.raw_text || "N/A"}</p>
+                  <p>{capturedData.glucose?.raw_text || "N/A"}</p>
                 </div>
                 <div className="result-meta">
                   <p>Confidence: {capturedData.glucose?.confidence || "N/A"}</p>
@@ -724,7 +731,7 @@ const PatientDashboard = () => {
           </div>
         </div>
       )}
-      {assignedRoom && (
+     {/* {assignedRoom && (
         <div
           style={{
             backgroundColor: "#2ecc71",
@@ -737,7 +744,7 @@ const PatientDashboard = () => {
         >
           Room: {assignedRoom}
         </div>
-      )}
+      )} */}
       {showCameraSettings && (
         <div className="modal-backdrop">
           <div className="modal camera-settings-modal">
@@ -847,6 +854,24 @@ const PatientDashboard = () => {
                   ))}
                 </select>
               </div>
+              {/* Webcam Camera */}
+              <div className="camera-assignment-row">
+  <label className="assignment-label">
+    <strong>Webcam (Video Conferencing):</strong>
+  </label>
+  <select
+    value={selectedCameras.webcam || ""}
+    onChange={(e) => assignCameraToType("webcam", e.target.value)}
+    className="camera-select"
+  >
+    <option value="">Select Camera</option>
+    {cameraDevices.map((device, index) => (
+      <option key={device.deviceId} value={device.deviceId}>
+        {device.label || `Camera ${index + 1}`}
+      </option>
+    ))}
+  </select>
+</div>
             </div>
 
             {/* Camera Info */}

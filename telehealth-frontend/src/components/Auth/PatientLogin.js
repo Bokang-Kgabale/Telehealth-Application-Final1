@@ -1,51 +1,39 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDatabase, ref, set, serverTimestamp } from "firebase/database";
-import AnimatedUUID from "../Animations/AnimatedUUID";
 import "./Auth.css";
 
 function PatientLogin() {
-  const [patientId, setPatientId] = useState('');
+  const [patientId] = useState("BFN-Tele1"); // Hardcoded for demonstration
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
   const db = getDatabase();
-  const city = "CPT";
 
-  useEffect(() => {
-    if (patientId) {
-      sessionStorage.setItem('currentPatientId', patientId);
-    }
-  }, [patientId]);
+  const city = "BFN";
 
   const handleJoinQueue = async () => {
-    if (!patientId) {
-      alert("Please wait for your Patient ID to generate");
-      return;
-    }
-
     setLoading(true);
     try {
       // Primary write to patients path
       await set(ref(db, `patients/${city}/${patientId}`), {
         id: patientId,
         city: city,
-        status: 'waiting',
+        status: "waiting",
         assignedRoom: null,
         createdAt: serverTimestamp(),
-        lastActive: serverTimestamp()
+        lastActive: serverTimestamp(),
       });
       setShowSuccess(true);
-      
+
       setTimeout(() => {
-        navigate('/patient', { 
-          state: { 
+        navigate("/patient", {
+          state: {
             patientId: patientId,
-            city: city
-          } 
+            city: city,
+          },
         });
       }, 2000);
-
     } catch (err) {
       console.error("Database error:", err);
       alert(`Error joining queue: ${err.message}`);
@@ -66,26 +54,22 @@ function PatientLogin() {
         </div>
       )}
       <header className="auth-header">
-        <button className="back-button" onClick={() => navigate("/")}>Back</button>
-        <h1>Telehealth Patient Portal</h1>       
+        <button className="back-button" onClick={() => navigate("/")}>
+          Back
+        </button>
+        <h1>Telehealth Patient Portal</h1>
       </header>
       <div className="auth-form-container">
         <div className="patient-id-display">
-          <h3>Your Temporary Patient ID</h3>
-          <AnimatedUUID 
-            prefix={city}
-            onFinalize={(id) => {
-              setPatientId(id);
-              sessionStorage.setItem('pendingPatientId', id);
-            }}
-          />
-          <p className="location-info"> Tele 1 ({city})</p>
+          <h3>Your Patient ID</h3>
+          <div className="patient-id">{patientId}</div>
+          <p className="location-info">Tele 1</p>
         </div>
 
-        <button 
+        <button
           className="auth-button"
           onClick={handleJoinQueue}
-          disabled={!patientId || loading}
+          disabled={loading}
           aria-busy={loading}
         >
           {loading ? (
@@ -93,7 +77,9 @@ function PatientLogin() {
               <span className="spinner"></span>
               Joining Queue...
             </>
-          ) : "Enter Queue"}
+          ) : (
+            "Enter Queue"
+          )}
         </button>
 
         <div className="info-message">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
-import { getDatabase, ref, onValue, off, get } from "firebase/database"; // Realtime Database
+import { getDatabase, ref, onValue, off } from "firebase/database"; // Realtime Database
 import { getAuth } from "firebase/auth";
 import { checkBrowserCompatibility } from "../Utils/browserCompatibility";
 import {
@@ -11,7 +11,7 @@ import { handleMarkAsDone } from "../Handlers/patientsHandlers";
 import "./DoctorDashboard.css";
 
 const DoctorDashboard = () => {
-  const [currentCity, setCurrentCity] = useState("CPT");
+  const [currentCity, setCurrentCity] = useState("BFN");
   const [showStream, setShowStream] = useState(false);
   const [currentRoomId, setCurrentRoomId] = useState(null);
   const [capturedData, setCapturedData] = useState(null);
@@ -23,6 +23,7 @@ const DoctorDashboard = () => {
   // Predefined list of cities
   // This can be replaced with a dynamic fetch from your database if needed
   const [availableCities] = useState([
+    { code: "BFN", name: "Bloemfontein Base" },
     { code: "CPT", name: "Cape Town Hub" },
     { code: "JHB", name: "Johannesburg Base" },
   ]);
@@ -325,7 +326,7 @@ const DoctorDashboard = () => {
           doc.text("Temperature:", margin, yPosition);
           doc.setFont(undefined, "normal");
           doc.text(
-            `Raw reading: ${capturedData.temperature.raw_text}`,
+            `${capturedData.temperature.raw_text}`,
             margin + 40,
             yPosition
           );
@@ -345,7 +346,7 @@ const DoctorDashboard = () => {
           doc.text("Weight:", margin, yPosition);
           doc.setFont(undefined, "normal");
           doc.text(
-            `Raw reading: ${capturedData.weight.raw_text}`,
+            `${capturedData.weight.raw_text}`,
             margin + 40,
             yPosition
           );
@@ -374,7 +375,7 @@ const DoctorDashboard = () => {
 
           doc.setTextColor(100, 100, 100);
           doc.text(
-            `Raw reading: ${capturedData.glucose.raw_text}`,
+            `${capturedData.glucose.raw_text}`,
             margin + 10,
             yPosition
           );
@@ -402,7 +403,7 @@ const DoctorDashboard = () => {
 
           doc.setTextColor(100, 100, 100);
           doc.text(
-            `Raw reading: ${capturedData.blood_pressure.raw_text}`,
+            `${capturedData.blood_pressure.raw_text}`,
             margin + 10,
             yPosition
           );
@@ -708,7 +709,7 @@ const DoctorDashboard = () => {
                   <div className="data-card temperature-card spaced-card">
                     <h4>Temperature Data</h4>
                     <div className="data-value">
-                      Raw: {capturedData.temperature.raw_text}
+                      {capturedData.temperature.raw_text}
                     </div>
                     <div className="data-raw"></div>
                     <div className="data-confidence">
@@ -720,7 +721,7 @@ const DoctorDashboard = () => {
                   <div className="data-card weight-card spaced-card">
                     <h4>Weight Data</h4>
                     <div className="data-value">
-                      Raw: {capturedData.weight.raw_text}
+                      {capturedData.weight.raw_text}
                     </div>
                     <div className="data-raw"></div>
                     <div className="data-confidence">
@@ -732,7 +733,7 @@ const DoctorDashboard = () => {
                   <div className="data-card glucose-card spaced-card">
                     <h4>Glucose Data</h4>
                     <div className="data-value">
-                      Raw: {capturedData.glucose.raw_text}
+                      {capturedData.glucose.raw_text}
                     </div>
                     <div className="data-raw"></div>
                     <div className="data-confidence">
@@ -744,7 +745,7 @@ const DoctorDashboard = () => {
                   <div className="data-card blood-pressure-card spaced-card">
                     <h4>Blood Pressure</h4>
                     <div className="data-value">
-                      Raw: {capturedData.blood_pressure.raw_text}
+                      {capturedData.blood_pressure.raw_text}
                     </div>
                     <div className="data-raw"></div>
                     <div className="data-confidence">

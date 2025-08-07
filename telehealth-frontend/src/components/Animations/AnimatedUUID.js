@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import './AnimatedUUID.css';
 
-const AnimatedUUID = ({ prefix = 'CPT', onFinalize }) => {
+const AnimatedUUID = ({ prefix = 'BFN', onFinalize }) => {
   const [displayId, setDisplayId] = useState(`${prefix}-XXXXXX`);
   const [isAnimating, setIsAnimating] = useState(true);
   const animationRef = useRef(null);
