@@ -150,27 +150,29 @@ const muteAudioBtn = document.getElementById("muteAudio");
 async function fetchTurnCredentials() {
   // Your static metered.ca TURN servers
   const staticTurnServers = [
-    { urls: "stun:stun.relay.metered.ca:80" },
-    {
-      urls: "turn:global.relay.metered.ca:80",
-      username: "2506751c38ffc2c7eaeccab9",
-      credential: "Hnz1SG7ezaCS6Jtg",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "2506751c38ffc2c7eaeccab9",
-      credential: "Hnz1SG7ezaCS6Jtg",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:443",
-      username: "2506751c38ffc2c7eaeccab9",
-      credential: "Hnz1SG7ezaCS6Jtg",
-    },
-    {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "2506751c38ffc2c7eaeccab9",
-      credential: "Hnz1SG7ezaCS6Jtg",
-    },
+      {
+        urls: "stun:stun.relay.metered.ca:80",
+      },
+      {
+        urls: "turn:global.relay.metered.ca:80",
+        username: "bcfe4d9904d13b41dd342b96",
+        credential: "C1OL6l9YwtpboGuE",
+      },
+      {
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+        username: "bcfe4d9904d13b41dd342b96",
+        credential: "C1OL6l9YwtpboGuE",
+      },
+      {
+        urls: "turn:global.relay.metered.ca:443",
+        username: "bcfe4d9904d13b41dd342b96",
+        credential: "C1OL6l9YwtpboGuE",
+      },
+      {
+        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+        username: "bcfe4d9904d13b41dd342b96",
+        credential: "C1OL6l9YwtpboGuE",
+      },
   ];
 
   try {
