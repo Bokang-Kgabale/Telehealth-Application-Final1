@@ -28,7 +28,6 @@ const DoctorDashboard = () => {
     { code: "JHB", name: "Johannesburg Base" },
   ]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [isAutoListening, setIsAutoListening] = useState(false);
 
   // Fetch doctor's name on component mount
   useEffect(() => {
@@ -83,105 +82,6 @@ const DoctorDashboard = () => {
         title: `Compatibility Issue with ${compatibility.browser.name}`,
         message: compatibility.message,
         actions: compatibility.actions,
-      });
-    }
-  }, []);
-
-  // Automatically listen for captured data when currentRoomId changes
-  useEffect(() => {
-    if (!currentRoomId) {
-      setCapturedData(null);
-      setIsAutoListening(false);
-      return;
-    }
-
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      console.error("No authenticated user found");
-      window.location.href = "/login";
-      return;
-    }
-
-    setIsAutoListening(true);
-    const db = getDatabase();
-    const capturedDataRef = ref(db, `capturedData/${currentRoomId}`);
-
-    console.log(`Starting auto-listener for room: ${currentRoomId}`);
-
-    // Listen for realtime updates to captured data
-    const unsubscribe = onValue(
-      capturedDataRef,
-      (snapshot) => {
-        const data = snapshot.val();
-
-        if (data) {
-          console.log("Captured data received automatically:", data);
-
-          // Transform the data to match your expected format
-          const transformedData = {
-            temperature: data.temperature
-              ? {
-                  raw_text:
-                    data.temperature.raw_text || data.temperature.rawText,
-                  confidence: data.temperature.confidence || "N/A",
-                }
-              : null,
-            weight: data.weight
-              ? {
-                  raw_text: data.weight.raw_text || data.weight.rawText,
-                  confidence: data.weight.confidence || "N/A",
-                }
-              : null,
-            glucose: data.glucose
-              ? {
-                  raw_text: data.glucose.raw_text || data.glucose.rawText,
-                  confidence: data.glucose.confidence || "N/A",
-                }
-              : null,
-            blood_pressure: data.blood_pressure
-              ? {
-                  raw_text:
-                    data.blood_pressure.raw_text || data.blood_pressure.rawText,
-                  confidence: data.blood_pressure.confidence || "N/A",
-                }
-              : null,
-          };
-
-          setCapturedData(transformedData);
-
-          // Optional: Show a notification when new data arrives
-          if (window.Notification && Notification.permission === "granted") {
-            new Notification("New Patient Data Available", {
-              body: `Vitals data captured for room ${currentRoomId}`,
-              icon: "/favicon.ico",
-            });
-          }
-        } else {
-          console.log(`No captured data found for room: ${currentRoomId}`);
-          setCapturedData(null);
-        }
-      },
-      (error) => {
-        console.error("Error listening for captured data:", error);
-        setIsAutoListening(false);
-      }
-    );
-
-    // Cleanup listener when room ID changes or component unmounts
-    return () => {
-      console.log(`Stopping auto-listener for room: ${currentRoomId}`);
-      off(capturedDataRef, unsubscribe);
-      setIsAutoListening(false);
-    };
-  }, [currentRoomId]); // Dependency on currentRoomId
-
-  // Request notification permission on component mount
-  useEffect(() => {
-    // Request notification permission on component mount
-    if (window.Notification && Notification.permission === "default") {
-      Notification.requestPermission().then((permission) => {
-        console.log("Notification permission:", permission);
       });
     }
   }, []);
@@ -640,7 +540,6 @@ const DoctorDashboard = () => {
           <div className="results-header">
             <h3>
               Patient Vitals
-              {isAutoListening && <span className="auto-badge">AUTO</span>}
             </h3>
             {capturedData && (
               <button
@@ -655,21 +554,6 @@ const DoctorDashboard = () => {
 
           <div className="search-section">
             <div className="search-container">
-              {/* Auto-listening indicator */}
-              {currentRoomId && (
-                <div className="auto-listening-indicator">
-                  <div
-                    className={`listening-dot ${
-                      isAutoListening ? "active" : ""
-                    }`}
-                  ></div>
-                  <span>
-                    {isAutoListening
-                      ? `Auto-monitoring Room ${currentRoomId}`
-                      : `Room ${currentRoomId} - Not monitoring`}
-                  </span>
-                </div>
-              )}
 
               <input
                 type="text"

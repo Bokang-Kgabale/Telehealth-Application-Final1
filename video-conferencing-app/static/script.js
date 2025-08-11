@@ -155,23 +155,23 @@ async function fetchTurnCredentials() {
       },
       {
         urls: "turn:global.relay.metered.ca:80",
-        username: "bcfe4d9904d13b41dd342b96",
-        credential: "C1OL6l9YwtpboGuE",
+        username: "246b5e6939c846cb24580aff",
+        credential: "O8K8XPrRWhmiv4GI",
       },
       {
         urls: "turn:global.relay.metered.ca:80?transport=tcp",
-        username: "bcfe4d9904d13b41dd342b96",
-        credential: "C1OL6l9YwtpboGuE",
+        username: "246b5e6939c846cb24580aff",
+        credential: "O8K8XPrRWhmiv4GI",
       },
       {
         urls: "turn:global.relay.metered.ca:443",
-        username: "bcfe4d9904d13b41dd342b96",
-        credential: "C1OL6l9YwtpboGuE",
+        username: "246b5e6939c846cb24580aff",
+        credential: "O8K8XPrRWhmiv4GI",
       },
       {
         urls: "turns:global.relay.metered.ca:443?transport=tcp",
-        username: "bcfe4d9904d13b41dd342b96",
-        credential: "C1OL6l9YwtpboGuE",
+        username: "246b5e6939c846cb24580aff",
+        credential: "O8K8XPrRWhmiv4GI",
       },
   ];
 

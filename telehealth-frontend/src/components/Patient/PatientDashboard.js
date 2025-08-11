@@ -372,7 +372,13 @@ const PatientDashboard = () => {
       setRoomId(finalRoomId);
       setShowRoomIdModal(false);
       setActiveCapture(pendingCaptureType);
-      setTimer(15);
+
+      // Special handling for endoscope - don't start countdown timer
+      if (pendingCaptureType === "endoscope") {
+        setTimer(0); // or you could set it to null
+      } else {
+        setTimer(15); // Normal countdown for other types
+      }
     }
   };
 
@@ -383,7 +389,14 @@ const PatientDashboard = () => {
     if (assignedRoom) {
       setRoomId(assignedRoom); // Set the room ID from assigned room
       setActiveCapture(type);
-      setTimer(15);
+
+      // Special handling for endoscope - don't start countdown timer
+      if (type === "endoscope") {
+        // Just show the camera view, no timer
+        setTimer(0); // or you could set it to null
+      } else {
+        setTimer(15); // Normal countdown for other types
+      }
     } else {
       setShowRoomIdModal(true);
     }
@@ -507,21 +520,38 @@ const PatientDashboard = () => {
                 </button>
               ))}
             </div>
-
             {activeCapture && (
               <div className="compact-camera-container enhanced-camera-box">
                 <div className="timer-display enhanced-timer">
-                  <span className="timer-circle">{timer}</span>
-                  <p>
-                    <strong>
-                      Capturing {activeCapture.replace("_", " ").toUpperCase()}{" "}
-                      in {timer}...
-                    </strong>
-                  </p>
-                  <p className="camera-label">
-                    Using Camera:{" "}
-                    <em>{getCameraName(selectedCameras[activeCapture])}</em>
-                  </p>
+                  {activeCapture === "endoscope" ? (
+                    // For endoscope, just show camera is active
+                    <>
+                      <span className="camera-active-indicator">📹</span>
+                      <p>
+                        <strong>ENDOSCOPE VIEW ACTIVE</strong>
+                      </p>
+                      <p className="camera-label">
+                        Using Camera:{" "}
+                        <em>{getCameraName(selectedCameras[activeCapture])}</em>
+                      </p>
+                    </>
+                  ) : (
+                    // For other types, show countdown timer
+                    <>
+                      <span className="timer-circle">{timer}</span>
+                      <p>
+                        <strong>
+                          Capturing{" "}
+                          {activeCapture.replace("_", " ").toUpperCase()} in{" "}
+                          {timer}...
+                        </strong>
+                      </p>
+                      <p className="camera-label">
+                        Using Camera:{" "}
+                        <em>{getCameraName(selectedCameras[activeCapture])}</em>
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <Webcam
