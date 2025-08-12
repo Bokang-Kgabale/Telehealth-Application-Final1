@@ -90,16 +90,16 @@ def initialize_services():
 
 class OCRService:
     PATTERNS = {
-        'temperature': r"(\d{2}\.?\d?\s?[°℃CF])|(\d{2}\.?\d?)",
-        'weight': r"(\d{2,3}\.?\d?\s?[kK][gG])|(\d{2,3}\.?\d?)",
-        'glucose': r"(\d{2,3}\.?\d?\s?(mg/dL|mmol/L)?)|(\d{2,3}\.?\d?)",
+        'temperature': r"(\d{1,3}[,.]?\d{0,2}\s?[°℃CF])|(\d{1,3}[,.]?\d{0,2})",
+        'weight': r"(\d{1,4}[,.]?\d{0,3}\s?[kK][gG])|(\d{1,4}[,.]?\d{0,3})",
+        'glucose': r"(\d{1,4}[,.]?\d{0,2}\s?(mg/dL|mmol/L)?)|(\d{1,4}[,.]?\d{0,2})",
         'blood_pressure': r"\b(\d{2,3})[\/\-](\d{2,3})\s*(mmHg|mmhg|MMHG)?\b",
         'endoscope': r".+"
     }
 
     @classmethod
     def extract_value(cls, text, capture_type):
-        """Extract formatted value from OCR text"""
+        """Extract formatted value from OCR text with exact decimal preservation"""
         if not text or text == "No text found":
             return None
 
@@ -109,25 +109,55 @@ class OCRService:
         if not flat_matches:
             return None
 
-        value = re.sub(r"[^\d./]", "", flat_matches[0])
+        # Get the first match and preserve original decimal formatting
+        raw_value = flat_matches[0]
+        
+        # Extract only digits, decimal points, and commas
+        clean_value = re.sub(r"[^\d.,]", "", raw_value)
+        
+        # Handle comma vs decimal point - preserve as found in OCR
+        if ',' in clean_value and '.' not in clean_value:
+            # If only comma exists, it's likely a decimal separator
+            numeric_value = clean_value.replace(',', '.')
+        elif '.' in clean_value and ',' not in clean_value:
+            # If only period exists, use as is
+            numeric_value = clean_value
+        elif ',' in clean_value and '.' in clean_value:
+            # Both exist - assume European format (comma as decimal)
+            # Remove thousand separators (dots) and convert decimal comma to dot
+            parts = clean_value.split(',')
+            if len(parts) == 2:
+                # Last comma is decimal separator
+                integer_part = parts[0].replace('.', '')
+                decimal_part = parts[1]
+                numeric_value = f"{integer_part}.{decimal_part}"
+            else:
+                # Fallback - use original
+                numeric_value = clean_value.replace(',', '.')
+        else:
+            # No decimal separators
+            numeric_value = clean_value
 
         try:
+            # Validate that we can parse it as a number, but don't convert to float
+            # to avoid precision loss
+            float(numeric_value)  # Just for validation
+            
             if capture_type == 'temperature':
-                num = float(value)
-                return f"{num}°C"
+                return f"{numeric_value}°C"
             elif capture_type == 'weight':
-                num = float(value)
-                return f"{num} Kg"
+                return f"{numeric_value} Kg"
             elif capture_type == 'glucose':
-                num = float(value)
-                return f"{num} mg/dL"
+                return f"{numeric_value} mg/dL"
             elif capture_type == 'blood_pressure':
-                return f"{value} mmHg"
+                return f"{clean_value} mmHg"
             elif capture_type == 'endoscope':
                 return "Endoscopic data captured"
             else:
-                return value
+                return numeric_value
+                
         except ValueError:
+            # If we can't parse as number, return None
             return None
 
     @classmethod

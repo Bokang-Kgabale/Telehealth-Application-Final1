@@ -420,7 +420,7 @@ const PatientDashboard = () => {
       <header className="app-header">
         <button
           className="back-button"
-          onClick={() => (window.location.href = "/")}
+          onClick={() => (window.location.href = "/patient-login")}
         >
           ←
         </button>
@@ -599,9 +599,10 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Temperature Reading</h4>
                 <div className="result-value">
-                  <p>{capturedData.temperature?.raw_text || "N/A"}</p>
+                  {capturedData.temperature?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
+                  <p>Raw OCR: {capturedData.temperature?.raw_text || "N/A"}</p>
                   <p>
                     Confidence: {capturedData.temperature?.confidence || "N/A"}
                   </p>
@@ -621,9 +622,10 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Weight Reading</h4>
                 <div className="result-value">
-                  <p>{capturedData.weight?.raw_text || "N/A"}</p>
+                  {capturedData.weight?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
+                  <p>Raw OCR: {capturedData.weight?.raw_text || "N/A"}</p>
                   <p>Confidence: {capturedData.weight?.confidence || "N/A"}</p>
                 </div>
                 {capturedImages.weight && (
@@ -641,10 +643,12 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Blood Pressure</h4>
                 <div className="result-value">
-                  {capturedData.blood_pressure?.raw_text || "N/A"}
+                  {capturedData.blood_pressure?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
-                  <p></p>
+                  <p>
+                    Raw OCR: {capturedData.blood_pressure?.raw_text || "N/A"}
+                  </p>
                   <p>
                     Confidence:{" "}
                     {capturedData.blood_pressure?.confidence || "N/A"}
@@ -665,9 +669,10 @@ const PatientDashboard = () => {
               <div className="result-card">
                 <h4>Glucose</h4>
                 <div className="result-value">
-                  <p>{capturedData.glucose?.raw_text || "N/A"}</p>
+                  {capturedData.glucose?.formatted_value || "N/A"}
                 </div>
                 <div className="result-meta">
+                  <p>Raw OCR: {capturedData.glucose?.raw_text || "N/A"}</p>
                   <p>Confidence: {capturedData.glucose?.confidence || "N/A"}</p>
                 </div>
                 {capturedImages.glucose && (
@@ -684,6 +689,15 @@ const PatientDashboard = () => {
             {capturedData.endoscope && (
               <div className="result-card">
                 <h4>Endoscope</h4>
+                <div className="result-value">
+                  {capturedData.endoscope?.formatted_value || "N/A"}
+                </div>
+                <div className="result-meta">
+                  <p>Raw OCR: {capturedData.endoscope?.raw_text || "N/A"}</p>
+                  <p>
+                    Confidence: {capturedData.endoscope?.confidence || "N/A"}
+                  </p>
+                </div>
                 {capturedImages.endoscope && (
                   <img
                     src={capturedImages.endoscope}

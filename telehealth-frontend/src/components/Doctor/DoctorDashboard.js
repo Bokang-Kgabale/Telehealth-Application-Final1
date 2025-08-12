@@ -535,7 +535,6 @@ const DoctorDashboard = () => {
             </div>
           )}
         </div>
-
         <div className="results-panel">
           <div className="results-header">
             <h3>
@@ -587,15 +586,17 @@ const DoctorDashboard = () => {
               <div className="loading-indicator">
                 <div className="spinner"></div>
               </div>
-            ) : capturedData ? (
+            )  : capturedData ? (
               <div className="data-cards">
                 {capturedData.temperature && (
                   <div className="data-card temperature-card spaced-card">
                     <h4>Temperature Data</h4>
                     <div className="data-value">
-                      {capturedData.temperature.raw_text}
+                      {capturedData.temperature.formatted_value}
                     </div>
-                    <div className="data-raw"></div>
+                    <div className="data-raw">
+                      Raw: {capturedData.temperature.raw_text}
+                    </div>
                     <div className="data-confidence">
                       Confidence: {capturedData.temperature.confidence}
                     </div>
@@ -605,9 +606,11 @@ const DoctorDashboard = () => {
                   <div className="data-card weight-card spaced-card">
                     <h4>Weight Data</h4>
                     <div className="data-value">
-                      {capturedData.weight.raw_text}
+                      {capturedData.weight.formatted_value}
                     </div>
-                    <div className="data-raw"></div>
+                    <div className="data-raw">
+                      Raw: {capturedData.weight.raw_text}
+                    </div>
                     <div className="data-confidence">
                       Confidence: {capturedData.weight.confidence}
                     </div>
@@ -617,9 +620,11 @@ const DoctorDashboard = () => {
                   <div className="data-card glucose-card spaced-card">
                     <h4>Glucose Data</h4>
                     <div className="data-value">
-                      {capturedData.glucose.raw_text}
+                      {capturedData.glucose.formatted_value}
                     </div>
-                    <div className="data-raw"></div>
+                    <div className="data-raw">
+                      Raw: {capturedData.glucose.raw_text}
+                    </div>
                     <div className="data-confidence">
                       Confidence: {capturedData.glucose.confidence}
                     </div>
@@ -629,9 +634,11 @@ const DoctorDashboard = () => {
                   <div className="data-card blood-pressure-card spaced-card">
                     <h4>Blood Pressure</h4>
                     <div className="data-value">
-                      {capturedData.blood_pressure.raw_text}
+                      {capturedData.blood_pressure.formatted_value}
                     </div>
-                    <div className="data-raw"></div>
+                    <div className="data-raw">
+                      Raw: {capturedData.blood_pressure.raw_text}
+                    </div>
                     <div className="data-confidence">
                       Confidence: {capturedData.blood_pressure.confidence}
                     </div>
