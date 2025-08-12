@@ -187,11 +187,15 @@ class OCRService:
             logger.error(f"OCR processing failed: {str(e)}")
             raise
 
-def save_to_firebase(room_id, capture_type, data):
-    """Save data to Firebase"""
+def save_to_firebase(room_id, capture_type, data, image_base64=None):
+    """Save data to Firebase with optional image"""
     try:
         if not firebase_initialized:
             raise Exception("Firebase not initialized")
+            
+        # Add image data if provided
+        if image_base64:
+            data['captured_image'] = image_base64
             
         path = f'telehealth_data/{room_id}/{capture_type}'
         ref = db.reference(path)
@@ -232,6 +236,9 @@ def upload_image(request):
                 img_bytes = io.BytesIO()
                 img.save(img_bytes, format='JPEG', quality=90, optimize=True)
                 image_bytes = img_bytes.getvalue()
+                import base64
+                image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                
         except Exception as e:
             raise ValueError(f"Invalid image file: {str(e)}")
         
@@ -239,7 +246,7 @@ def upload_image(request):
         ocr_results = OCRService.process_image(image_bytes, capture_type)
         
         # Save to Firebase
-        save_to_firebase(room_id, capture_type, ocr_results)
+        save_to_firebase(room_id, capture_type, ocr_results, image_base64=image_base64)
         
         # Return success response
         response_data = {

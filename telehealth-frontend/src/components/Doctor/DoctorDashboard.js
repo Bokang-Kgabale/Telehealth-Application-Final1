@@ -226,6 +226,12 @@ const DoctorDashboard = () => {
           doc.text("Temperature:", margin, yPosition);
           doc.setFont(undefined, "normal");
           doc.text(
+            `${capturedData.temperature.formatted_value}`,
+            margin + 40,
+            yPosition
+          );
+          yPosition += lineHeight;
+          doc.text(
             `${capturedData.temperature.raw_text}`,
             margin + 40,
             yPosition
@@ -237,7 +243,25 @@ const DoctorDashboard = () => {
             yPosition
           );
           yPosition += lineHeight + 5;
-          doc.setTextColor(0, 0, 0);
+
+          // Add image if available
+          if (capturedData.temperature.captured_image) {
+            try {
+              doc.addImage(
+                `data:image/jpeg;base64,${capturedData.temperature.captured_image}`,
+                "JPEG",
+                margin,
+                yPosition,
+                60, // width
+                45 // height
+              );
+              yPosition += 50; // Adjust for image height
+            } catch (error) {
+              console.log("Could not add image to PDF:", error);
+            }
+          }
+
+          yPosition += 5;
         }
 
         // Weight data
@@ -246,11 +270,16 @@ const DoctorDashboard = () => {
           doc.text("Weight:", margin, yPosition);
           doc.setFont(undefined, "normal");
           doc.text(
-            `${capturedData.weight.raw_text}`,
+            `${capturedData.weight.formatted_value}`,
             margin + 40,
             yPosition
           );
           yPosition += lineHeight;
+          doc.text(
+            `${capturedData.weight.raw_text}`,
+            margin + 40,
+            yPosition
+          );
           yPosition += lineHeight;
           doc.text(
             `Confidence: ${capturedData.weight.confidence}`,
@@ -258,25 +287,41 @@ const DoctorDashboard = () => {
             yPosition
           );
           yPosition += lineHeight + 5;
-          doc.setTextColor(0, 0, 0);
+
+          // Add image if available
+          if (capturedData.weight.captured_image) {
+            try {
+              doc.addImage(
+                `data:image/jpeg;base64,${capturedData.weight.captured_image}`,
+                "JPEG",
+                margin,
+                yPosition,
+                60, // width
+                45 // height
+              );
+              yPosition += 50; // Adjust for image height
+            } catch (error) {
+              console.log("Could not add image to PDF:", error);
+            }
+          }
+
+          yPosition += 5;
         }
 
         // Glucose data
         if (capturedData.glucose) {
           doc.setFont(undefined, "bold");
-          doc.text("Blood Glucose:", margin, yPosition);
+          doc.text("Glucose:", margin, yPosition);
           doc.setFont(undefined, "normal");
           doc.text(
-            capturedData.glucose.formatted_value,
+            `${capturedData.glucose.formatted_value}`,
             margin + 40,
             yPosition
           );
           yPosition += lineHeight;
-
-          doc.setTextColor(100, 100, 100);
           doc.text(
             `${capturedData.glucose.raw_text}`,
-            margin + 10,
+            margin + 40,
             yPosition
           );
           yPosition += lineHeight;
@@ -286,35 +331,25 @@ const DoctorDashboard = () => {
             yPosition
           );
           yPosition += lineHeight + 5;
-          doc.setTextColor(0, 0, 0);
-        }
 
-        // Blood pressure data
-        if (capturedData.blood_pressure) {
-          doc.setFont(undefined, "bold");
-          doc.text("Blood Pressure:", margin, yPosition);
-          doc.setFont(undefined, "normal");
-          doc.text(
-            capturedData.blood_pressure.formatted_value,
-            margin + 40,
-            yPosition
-          );
-          yPosition += lineHeight;
+          // Add image if available
+          if (capturedData.glucose.captured_image) {
+            try {
+              doc.addImage(
+                `data:image/jpeg;base64,${capturedData.glucose.captured_image}`,
+                "JPEG",
+                margin,
+                yPosition,
+                60, // width
+                45 // height
+              );
+              yPosition += 50; // Adjust for image height
+            } catch (error) {
+              console.log("Could not add image to PDF:", error);
+            }
+          }
 
-          doc.setTextColor(100, 100, 100);
-          doc.text(
-            `${capturedData.blood_pressure.raw_text}`,
-            margin + 10,
-            yPosition
-          );
-          yPosition += lineHeight;
-          doc.text(
-            `Confidence: ${capturedData.blood_pressure.confidence}`,
-            margin + 10,
-            yPosition
-          );
-          yPosition += lineHeight + 5;
-          doc.setTextColor(0, 0, 0);
+          yPosition += 5;
         }
 
         // Footer
@@ -537,9 +572,7 @@ const DoctorDashboard = () => {
         </div>
         <div className="results-panel">
           <div className="results-header">
-            <h3>
-              Patient Vitals
-            </h3>
+            <h3>Patient Vitals</h3>
             {capturedData && (
               <button
                 className="download-button"
@@ -553,7 +586,6 @@ const DoctorDashboard = () => {
 
           <div className="search-section">
             <div className="search-container">
-
               <input
                 type="text"
                 className="search-input"
@@ -586,7 +618,7 @@ const DoctorDashboard = () => {
               <div className="loading-indicator">
                 <div className="spinner"></div>
               </div>
-            )  : capturedData ? (
+            ) : capturedData ? (
               <div className="data-cards">
                 {capturedData.temperature && (
                   <div className="data-card temperature-card spaced-card">
@@ -600,8 +632,26 @@ const DoctorDashboard = () => {
                     <div className="data-confidence">
                       Confidence: {capturedData.temperature.confidence}
                     </div>
+                    {/* ADD THIS IMAGE SECTION */}
+                    {capturedData.temperature.captured_image && (
+                      <div className="captured-image-section">
+                        <h5>Captured Image:</h5>
+                        <img
+                          src={`data:image/jpeg;base64,${capturedData.temperature.captured_image}`}
+                          alt="Temperature reading"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "200px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            marginTop: "10px",
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
+
                 {capturedData.weight && (
                   <div className="data-card weight-card spaced-card">
                     <h4>Weight Data</h4>
@@ -614,8 +664,26 @@ const DoctorDashboard = () => {
                     <div className="data-confidence">
                       Confidence: {capturedData.weight.confidence}
                     </div>
+                    {/* ADD THIS IMAGE SECTION */}
+                    {capturedData.weight.captured_image && (
+                      <div className="captured-image-section">
+                        <h5>Captured Image:</h5>
+                        <img
+                          src={`data:image/jpeg;base64,${capturedData.weight.captured_image}`}
+                          alt="Weight reading"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "200px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            marginTop: "10px",
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
+
                 {capturedData.glucose && (
                   <div className="data-card glucose-card spaced-card">
                     <h4>Glucose Data</h4>
@@ -628,8 +696,26 @@ const DoctorDashboard = () => {
                     <div className="data-confidence">
                       Confidence: {capturedData.glucose.confidence}
                     </div>
+                    {/* ADD THIS IMAGE SECTION */}
+                    {capturedData.glucose.captured_image && (
+                      <div className="captured-image-section">
+                        <h5>Captured Image:</h5>
+                        <img
+                          src={`data:image/jpeg;base64,${capturedData.glucose.captured_image}`}
+                          alt="Glucose reading"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "200px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            marginTop: "10px",
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
+
                 {capturedData.blood_pressure && (
                   <div className="data-card blood-pressure-card spaced-card">
                     <h4>Blood Pressure</h4>
@@ -642,6 +728,55 @@ const DoctorDashboard = () => {
                     <div className="data-confidence">
                       Confidence: {capturedData.blood_pressure.confidence}
                     </div>
+                    {/* ADD THIS IMAGE SECTION */}
+                    {capturedData.blood_pressure.captured_image && (
+                      <div className="captured-image-section">
+                        <h5>Captured Image:</h5>
+                        <img
+                          src={`data:image/jpeg;base64,${capturedData.blood_pressure.captured_image}`}
+                          alt="Blood pressure reading"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "200px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            marginTop: "10px",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {capturedData.endoscope && (
+                  <div className="data-card endoscope-card spaced-card">
+                    <h4>Endoscope Data</h4>
+                    <div className="data-value">
+                      {capturedData.endoscope.formatted_value}
+                    </div>
+                    <div className="data-raw">
+                      Raw: {capturedData.endoscope.raw_text}
+                    </div>
+                    <div className="data-confidence">
+                      Confidence: {capturedData.endoscope.confidence}
+                    </div>
+                    {/* ADD THIS IMAGE SECTION */}
+                    {capturedData.endoscope.captured_image && (
+                      <div className="captured-image-section">
+                        <h5>Captured Image:</h5>
+                        <img
+                          src={`data:image/jpeg;base64,${capturedData.endoscope.captured_image}`}
+                          alt="Endoscope view"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "200px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            marginTop: "10px",
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

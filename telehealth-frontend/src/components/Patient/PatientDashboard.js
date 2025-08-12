@@ -153,7 +153,6 @@ const PatientDashboard = () => {
         const formData = new FormData();
         formData.append("image", blob, `${type}_${Date.now()}.jpg`);
         formData.append("type", type);
-        // Use assignedRoom first, then roomId, then default
         formData.append("roomId", assignedRoom || roomId || "default-room");
 
         const baseUrl =
@@ -170,10 +169,10 @@ const PatientDashboard = () => {
 
         const data = await uploadResponse.json();
 
-        // FIXED: Add null safety for confidence property = formatted_value: data.data?.formatted_value || "Processing...",
         const processedData = {
           raw_text: data.data?.raw_text || "No text detected",
-          confidence: data.data?.confidence || 0, // Changed from "unknown" to 0
+          confidence: data.data?.confidence || 0,
+          captured_image: imageSrc, // Store the image locally too
           ...data.data,
         };
 
@@ -194,7 +193,7 @@ const PatientDashboard = () => {
         setIsCapturing(false);
       }
     },
-    [roomId, assignedRoom] // Added assignedRoom to dependencies
+    [roomId, assignedRoom]
   );
 
   const captureImage = useCallback(
