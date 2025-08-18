@@ -232,14 +232,14 @@ const DoctorDashboard = () => {
           );
           yPosition += lineHeight;
           doc.text(
-            `${capturedData.temperature.raw_text}`,
+            `Raw Data: ${capturedData.temperature.raw_text}`,
             margin + 40,
             yPosition
           );
           yPosition += lineHeight;
           doc.text(
             `Confidence: ${capturedData.temperature.confidence}`,
-            margin + 10,
+            margin + 40,
             yPosition
           );
           yPosition += lineHeight + 5;
@@ -276,7 +276,7 @@ const DoctorDashboard = () => {
           );
           yPosition += lineHeight;
           doc.text(
-            `${capturedData.weight.raw_text}`,
+            `Raw Data: ${capturedData.weight.raw_text}`,
             margin + 40,
             yPosition
           );
@@ -287,7 +287,7 @@ const DoctorDashboard = () => {
             yPosition
           );
           yPosition += lineHeight + 5;
-
+  
           // Add image if available
           if (capturedData.weight.captured_image) {
             try {
@@ -314,7 +314,7 @@ const DoctorDashboard = () => {
           doc.text("Glucose:", margin, yPosition);
           doc.setFont(undefined, "normal");
           doc.text(
-            `${capturedData.glucose.formatted_value}`,
+            `Raw Data: ${capturedData.glucose.formatted_value}`,
             margin + 40,
             yPosition
           );
